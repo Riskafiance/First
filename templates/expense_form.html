@@ -1,0 +1,410 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if expense %}Edit{% else %}Create{% endif %} Expense{% endblock %}
+{% block page_title %}{% if expense %}Edit{% else %}Create{% endif %} Expense{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Expenses
+    </a>
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    .delete-item {
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="expenseForm">
+            <!-- Header Information -->
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <label for="entityId" class="form-label">Vendor</label>
+                    <select class="form-select" id="entityId" name="entityId" required>
+                        <option value="">Select Vendor</option>
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor.id }}" {% if expense and expense.entity_id == vendor.id %}selected{% endif %}>{{ vendor.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="expenseDate" class="form-label">Expense Date</label>
+                    <input type="date" class="form-control" id="expenseDate" name="expenseDate" 
+                           value="{% if expense %}{{ expense.expense_date.strftime('%Y-%m-%d') }}{% else %}{{ today }}{% endif %}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="paymentDueDate" class="form-label">Payment Due Date</label>
+                    <input type="date" class="form-control" id="paymentDueDate" name="paymentDueDate" 
+                           value="{% if expense %}{{ expense.payment_due_date.strftime('%Y-%m-%d') }}{% else %}{{ today }}{% endif %}" required>
+                </div>
+            </div>
+            
+            <!-- Line Items -->
+            <h5 class="mb-3">Items</h5>
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered" id="itemsTable">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 40%;">Description</th>
+                            <th style="width: 15%;">Quantity</th>
+                            <th style="width: 15%;">Unit Price</th>
+                            <th style="width: 20%;">Account</th>
+                            <th style="width: 10%;" class="text-end">Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody">
+                        {% if expense and expense.items %}
+                            {% for item in expense.items %}
+                            <tr class="item-row" data-index="{{ loop.index0 }}">
+                                <td>
+                                    <input type="text" class="form-control item-description" name="items[{{ loop.index0 }}][description]" value="{{ item.description }}" required>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control item-quantity" name="items[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}" min="0.01" step="0.01" required>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control item-price" name="items[{{ loop.index0 }}][unit_price]" value="{{ item.unit_price }}" min="0.01" step="0.01" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <select class="form-select item-account" name="items[{{ loop.index0 }}][account_id]" required>
+                                        <option value="">Select Account</option>
+                                        {% for account in expense_accounts %}
+                                        <option value="{{ account.id }}" {% if item.account_id == account.id %}selected{% endif %}>{{ account.code }} - {{ account.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="text-end item-amount">${{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
+                                <td class="text-center">
+                                    <i class="fas fa-times text-danger delete-item"></i>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="item-row" data-index="0">
+                                <td>
+                                    <input type="text" class="form-control item-description" name="items[0][description]" required>
+                                </td>
+                                <td>
+                                    <input type="number" class="form-control item-quantity" name="items[0][quantity]" value="1" min="0.01" step="0.01" required>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control item-price" name="items[0][unit_price]" value="0.00" min="0.01" step="0.01" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <select class="form-select item-account" name="items[0][account_id]" required>
+                                        <option value="">Select Account</option>
+                                        {% for account in expense_accounts %}
+                                        <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="text-end item-amount">$0.00</td>
+                                <td class="text-center">
+                                    <i class="fas fa-times text-danger delete-item"></i>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="6">
+                                <button type="button" class="btn btn-outline-secondary" id="addLineItem">
+                                    <i class="fas fa-plus me-1"></i> Add Line
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th colspan="4" class="text-end">Total</th>
+                            <th class="text-end" id="expenseTotal">
+                                ${% if expense %}{{ "{:,.2f}".format(expense.total_amount) }}{% else %}0.00{% endif %}
+                            </th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            
+            <!-- Notes -->
+            <div class="mb-4">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3">{% if expense %}{{ expense.notes }}{% endif %}</textarea>
+            </div>
+            
+            <!-- Hidden total field -->
+            <input type="hidden" id="expenseTotalInput" name="expenseTotal" value="{% if expense %}{{ expense.total_amount }}{% else %}0{% endif %}">
+            
+            <!-- Form actions -->
+            <div class="d-flex justify-content-end">
+                <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary" id="saveExpense">Save Expense</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add new line item
+        function addNewLineItem() {
+            const itemsBody = document.getElementById('itemsBody');
+            const rows = itemsBody.querySelectorAll('.item-row');
+            const newIndex = rows.length;
+            
+            const newRow = document.createElement('tr');
+            newRow.className = 'item-row';
+            newRow.dataset.index = newIndex;
+            
+            newRow.innerHTML = `
+                <td>
+                    <input type="text" class="form-control item-description" name="items[${newIndex}][description]" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control item-quantity" name="items[${newIndex}][quantity]" value="1" min="0.01" step="0.01" required>
+                </td>
+                <td>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control item-price" name="items[${newIndex}][unit_price]" value="0.00" min="0.01" step="0.01" required>
+                    </div>
+                </td>
+                <td>
+                    <select class="form-select item-account" name="items[${newIndex}][account_id]" required>
+                        <option value="">Select Account</option>
+                        ${Array.from(document.querySelectorAll('#itemsBody .item-row:first-child .item-account option')).map(option => 
+                            `<option value="${option.value}">${option.textContent}</option>`
+                        ).join('')}
+                    </select>
+                </td>
+                <td class="text-end item-amount">$0.00</td>
+                <td class="text-center">
+                    <i class="fas fa-times text-danger delete-item"></i>
+                </td>
+            `;
+            
+            itemsBody.appendChild(newRow);
+            addLineItemEventListeners(newIndex);
+            
+            // Focus on the description field of the new row
+            newRow.querySelector('.item-description').focus();
+        }
+        
+        // Add event listeners to line item inputs
+        function addLineItemEventListeners(index) {
+            const row = document.querySelector(`.item-row[data-index="${index}"]`);
+            
+            if (row) {
+                const quantityInput = row.querySelector('.item-quantity');
+                const priceInput = row.querySelector('.item-price');
+                const deleteBtn = row.querySelector('.delete-item');
+                
+                // Calculate line amount when quantity or price changes
+                quantityInput.addEventListener('input', updateLineAmount);
+                priceInput.addEventListener('input', updateLineAmount);
+                
+                // Delete line item
+                deleteBtn.addEventListener('click', deleteLine);
+            }
+        }
+        
+        // Update line amount
+        function updateLineAmount(e) {
+            const row = e.target.closest('.item-row');
+            const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const amount = quantity * price;
+            
+            row.querySelector('.item-amount').textContent = '$' + amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            
+            calculateExpenseTotal();
+        }
+        
+        // Delete line item
+        function deleteLine(e) {
+            const row = e.target.closest('.item-row');
+            const itemsBody = document.getElementById('itemsBody');
+            
+            // Only delete if there's more than one line item
+            if (itemsBody.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+                reindexItems();
+                calculateExpenseTotal();
+            } else {
+                // If this is the last row, just clear its values
+                row.querySelector('.item-description').value = '';
+                row.querySelector('.item-quantity').value = '1';
+                row.querySelector('.item-price').value = '0.00';
+                row.querySelector('.item-account').value = '';
+                row.querySelector('.item-amount').textContent = '$0.00';
+                calculateExpenseTotal();
+            }
+        }
+        
+        // Reindex items after deletion
+        function reindexItems() {
+            const rows = document.querySelectorAll('#itemsBody .item-row');
+            
+            rows.forEach((row, index) => {
+                row.dataset.index = index;
+                
+                row.querySelector('.item-description').name = `items[${index}][description]`;
+                row.querySelector('.item-quantity').name = `items[${index}][quantity]`;
+                row.querySelector('.item-price').name = `items[${index}][unit_price]`;
+                row.querySelector('.item-account').name = `items[${index}][account_id]`;
+            });
+        }
+        
+        // Calculate expense total
+        function calculateExpenseTotal() {
+            const rows = document.querySelectorAll('#itemsBody .item-row');
+            let total = 0;
+            
+            rows.forEach(row => {
+                const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                total += quantity * price;
+            });
+            
+            document.getElementById('expenseTotal').textContent = '$' + total.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            document.getElementById('expenseTotalInput').value = total.toFixed(2);
+        }
+        
+        // Validate expense form before submission
+        function validateExpenseForm() {
+            const form = document.getElementById('expenseForm');
+            const rows = document.querySelectorAll('#itemsBody .item-row');
+            let isValid = true;
+            
+            // Check if vendor is selected
+            const vendorSelect = document.getElementById('entityId');
+            if (!vendorSelect.value) {
+                markInvalid(vendorSelect, 'Please select a vendor');
+                isValid = false;
+            } else {
+                markValid(vendorSelect);
+            }
+            
+            // Check expense date
+            const expenseDate = document.getElementById('expenseDate');
+            if (!expenseDate.value) {
+                markInvalid(expenseDate, 'Please enter an expense date');
+                isValid = false;
+            } else {
+                markValid(expenseDate);
+            }
+            
+            // Check payment due date
+            const paymentDueDate = document.getElementById('paymentDueDate');
+            if (!paymentDueDate.value) {
+                markInvalid(paymentDueDate, 'Please enter a payment due date');
+                isValid = false;
+            } else {
+                markValid(paymentDueDate);
+            }
+            
+            // Check if at least one item exists and is valid
+            if (rows.length === 0) {
+                isValid = false;
+                alert('Please add at least one line item.');
+            } else {
+                rows.forEach(row => {
+                    const description = row.querySelector('.item-description');
+                    const quantity = row.querySelector('.item-quantity');
+                    const price = row.querySelector('.item-price');
+                    const account = row.querySelector('.item-account');
+                    
+                    if (!description.value.trim()) {
+                        markInvalid(description, 'Description is required');
+                        isValid = false;
+                    } else {
+                        markValid(description);
+                    }
+                    
+                    if (!quantity.value || parseFloat(quantity.value) <= 0) {
+                        markInvalid(quantity, 'Quantity must be greater than 0');
+                        isValid = false;
+                    } else {
+                        markValid(quantity);
+                    }
+                    
+                    if (!price.value || parseFloat(price.value) <= 0) {
+                        markInvalid(price, 'Price must be greater than 0');
+                        isValid = false;
+                    } else {
+                        markValid(price);
+                    }
+                    
+                    if (!account.value) {
+                        markInvalid(account, 'Please select an account');
+                        isValid = false;
+                    } else {
+                        markValid(account);
+                    }
+                });
+            }
+            
+            return isValid;
+        }
+        
+        function markInvalid(element, message) {
+            element.classList.add('is-invalid');
+            
+            // Find or create the feedback div
+            let feedback = element.nextElementSibling;
+            if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback';
+                element.parentNode.insertBefore(feedback, element.nextSibling);
+            }
+            
+            feedback.textContent = message;
+        }
+        
+        function markValid(element) {
+            element.classList.remove('is-invalid');
+            element.classList.add('is-valid');
+            
+            // Remove any existing feedback
+            const feedback = element.nextElementSibling;
+            if (feedback && feedback.classList.contains('invalid-feedback')) {
+                feedback.remove();
+            }
+        }
+        
+        // Add event listeners to existing line items
+        document.querySelectorAll('#itemsBody .item-row').forEach((row, index) => {
+            addLineItemEventListeners(index);
+        });
+        
+        // Add new line item button
+        document.getElementById('addLineItem').addEventListener('click', addNewLineItem);
+        
+        // Form submission
+        document.getElementById('expenseForm').addEventListener('submit', function(e) {
+            if (!validateExpenseForm()) {
+                e.preventDefault();
+            }
+        });
+        
+        // Initial calculation
+        calculateExpenseTotal();
+    });
+</script>
+{% endblock %}

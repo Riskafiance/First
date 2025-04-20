@@ -1,0 +1,266 @@
+{% extends "layout.html" %}
+
+{% block title %}Expense {{ expense.expense_number }}{% endblock %}
+{% block page_title %}Expense {{ expense.expense_number }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('expenses.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Expenses
+    </a>
+    
+    {% if expense.status.name == 'Draft' %}
+    <a href="{{ url_for('expenses.edit', expense_id=expense.id) }}" class="btn btn-outline-primary ms-2">
+        <i class="fas fa-edit me-1"></i> Edit
+    </a>
+    
+    <button type="button" class="btn btn-outline-info ms-2" data-bs-toggle="modal" data-bs-target="#submitModal">
+        <i class="fas fa-paper-plane me-1"></i> Submit for Approval
+    </button>
+    {% endif %}
+    
+    {% if expense.status.name == 'Pending' %}
+    {% if current_user.has_permission(4) %}
+    <button type="button" class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#approveModal">
+        <i class="fas fa-check me-1"></i> Approve
+    </button>
+    
+    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#rejectModal">
+        <i class="fas fa-times me-1"></i> Reject
+    </button>
+    {% endif %}
+    {% endif %}
+    
+    {% if expense.status.name == 'Approved' %}
+    <button type="button" class="btn btn-outline-success ms-2" data-bs-toggle="modal" data-bs-target="#paymentModal">
+        <i class="fas fa-check me-1"></i> Mark as Paid
+    </button>
+    {% endif %}
+    
+    <button class="btn btn-outline-secondary ms-2" onclick="window.print()">
+        <i class="fas fa-print me-1"></i> Print
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <!-- Expense header -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h2 class="mb-3">Riska's Finance Enterprise</h2>
+                <p class="mb-1">123 Finance Street</p>
+                <p class="mb-1">Business City, ST 12345</p>
+                <p class="mb-1">Phone: (555) 123-4567</p>
+                <p>Email: accounting@riskasfinance.com</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h1 class="mb-3">EXPENSE</h1>
+                <p class="mb-1"><strong>Expense #:</strong> {{ expense.expense_number }}</p>
+                <p class="mb-1"><strong>Date:</strong> {{ expense.expense_date.strftime('%b %d, %Y') }}</p>
+                <p class="mb-1"><strong>Payment Due:</strong> {{ expense.payment_due_date.strftime('%b %d, %Y') }}</p>
+                <p>
+                    <strong>Status:</strong>
+                    {% if expense.status.name == 'Draft' %}
+                    <span class="badge bg-secondary">Draft</span>
+                    {% elif expense.status.name == 'Pending' %}
+                    <span class="badge bg-info">Pending</span>
+                    {% elif expense.status.name == 'Approved' %}
+                    <span class="badge bg-primary">Approved</span>
+                    {% elif expense.status.name == 'Paid' %}
+                    <span class="badge bg-success">Paid</span>
+                    {% elif expense.status.name == 'Rejected' %}
+                    <span class="badge bg-danger">Rejected</span>
+                    {% else %}
+                    <span class="badge bg-dark">{{ expense.status.name }}</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        
+        <!-- Vendor information -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <h5 class="mb-3">Vendor:</h5>
+                <p class="mb-1"><strong>{{ expense.entity.name }}</strong></p>
+                {% if expense.entity.contact_name %}
+                <p class="mb-1">Attn: {{ expense.entity.contact_name }}</p>
+                {% endif %}
+                {% if expense.entity.address %}
+                <p class="mb-1">{{ expense.entity.address }}</p>
+                {% endif %}
+                {% if expense.entity.email %}
+                <p class="mb-1">{{ expense.entity.email }}</p>
+                {% endif %}
+                {% if expense.entity.phone %}
+                <p>{{ expense.entity.phone }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Expense items -->
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th scope="col">Description</th>
+                        <th scope="col" class="text-end">Quantity</th>
+                        <th scope="col" class="text-end">Unit Price</th>
+                        <th scope="col" class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in expense.items %}
+                    <tr>
+                        <td>{{ item.description }}</td>
+                        <td class="text-end">{{ "{:,.2f}".format(item.quantity) }}</td>
+                        <td class="text-end">${{ "{:,.2f}".format(item.unit_price) }}</td>
+                        <td class="text-end">${{ "{:,.2f}".format(item.quantity * item.unit_price) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan="3" class="text-end">Total</th>
+                        <th class="text-end">${{ "{:,.2f}".format(expense.total_amount) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Notes -->
+        {% if expense.notes %}
+        <div class="mb-4">
+            <h5>Notes</h5>
+            <p>{{ expense.notes }}</p>
+        </div>
+        {% endif %}
+        
+        <!-- Related transactions -->
+        {% if expense.journal_entry %}
+        <div class="mt-5">
+            <h5>Related Transactions</h5>
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{{ expense.journal_entry.entry_date.strftime('%b %d, %Y') }}</td>
+                        <td><a href="{{ url_for('journals.view', journal_id=expense.journal_entry.id) }}">{{ expense.journal_entry.reference }}</a></td>
+                        <td>{{ expense.journal_entry.description }}</td>
+                        <td>
+                            {% if expense.journal_entry.is_posted %}
+                            <span class="badge bg-success">Posted</span>
+                            {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Submit for approval modal -->
+<div class="modal fade" id="submitModal" tabindex="-1" aria-labelledby="submitModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="submitModalLabel">Submit Expense for Approval</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to submit this expense for approval?</p>
+                <p>This will notify the approvers that this expense is ready for review.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('expenses.submit', expense_id=expense.id) }}" method="post">
+                    <button type="submit" class="btn btn-info">Submit for Approval</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approve modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="approveModalLabel">Approve Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to approve this expense?</p>
+                <p>This will create the accounting entries for this expense in the general ledger.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('expenses.approve', expense_id=expense.id) }}" method="post">
+                    <button type="submit" class="btn btn-success">Approve Expense</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rejectModalLabel">Reject Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to reject this expense?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> This will mark the expense as rejected.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('expenses.reject', expense_id=expense.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Reject Expense</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment modal -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentModalLabel">Record Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('expenses.mark_paid', expense_id=expense.id) }}" method="post">
+                <div class="modal-body">
+                    <p>Record payment for expense #{{ expense.expense_number }} for ${{ "{:,.2f}".format(expense.total_amount) }}</p>
+                    
+                    <div class="mb-3">
+                        <label for="payment_date" class="form-label">Payment Date</label>
+                        <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Record Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

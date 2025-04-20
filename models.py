@@ -191,3 +191,57 @@ class InvoiceItem(db.Model):
     
     def __repr__(self):
         return f'<InvoiceItem {self.id} - {self.description}>'
+
+# Expense Status
+class ExpenseStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    DRAFT = 'Draft'
+    PENDING = 'Pending'
+    APPROVED = 'Approved'
+    PAID = 'Paid'
+    REJECTED = 'Rejected'
+    
+    def __repr__(self):
+        return f'<ExpenseStatus {self.name}>'
+
+# Expenses
+class Expense(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    expense_number = db.Column(db.String(20), unique=True, nullable=False)
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
+    entity = db.relationship('Entity')
+    expense_date = db.Column(db.Date, nullable=False)
+    payment_due_date = db.Column(db.Date, nullable=False)
+    status_id = db.Column(db.Integer, db.ForeignKey('expense_status.id'), nullable=False)
+    status = db.relationship('ExpenseStatus')
+    total_amount = db.Column(db.Numeric(14, 2), default=0)
+    notes = db.Column(db.Text)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<Expense {self.expense_number}>'
+
+# Expense Line Items
+class ExpenseItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey('expense.id'), nullable=False)
+    expense = db.relationship('Expense', backref='items')
+    description = db.Column(db.String(255), nullable=False)
+    quantity = db.Column(db.Numeric(10, 2), default=1)
+    unit_price = db.Column(db.Numeric(14, 2), nullable=False)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    account = db.relationship('Account')
+    
+    @property
+    def line_total(self):
+        return self.quantity * self.unit_price
+    
+    def __repr__(self):
+        return f'<ExpenseItem {self.id} - {self.description}>'
