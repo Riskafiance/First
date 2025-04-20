@@ -5,7 +5,9 @@
     height: 100vh;
     position: fixed;
     padding-top: 20px;
+    padding-bottom: 20px;
     background-color: var(--bs-dark);
+    overflow-y: auto; /* Make sidebar scrollable */
 }
 
 .sidebar .nav-link {
@@ -25,6 +27,19 @@
 
 .sidebar .nav-link i {
     margin-right: 10px;
+}
+
+/* Style for profile and logout buttons */
+.sidebar .nav-item.mt-4 {
+    margin-top: 3rem !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+}
+
+.sidebar .nav-item.mt-4 .nav-link,
+.sidebar .nav-item.mt-4 + .nav-item .nav-link {
+    background-color: rgba(0, 0, 0, 0.2);
+    margin-bottom: 8px;
 }
 
 /* Main content area */
