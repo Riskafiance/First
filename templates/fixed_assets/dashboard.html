@@ -1,0 +1,304 @@
+{% extends 'layout.html' %}
+
+{% block title %}Fixed Assets Dashboard{% endblock %}
+
+{% block page_title %}Fixed Assets Dashboard{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ url_for('fixed_assets.assets') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-list"></i> View All Assets
+    </a>
+    <a href="{{ url_for('fixed_assets.add_asset') }}" class="btn btn-sm btn-primary ms-2">
+        <i class="fas fa-plus"></i> Add New Asset
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Summary Cards -->
+    <div class="col-md-3">
+        <div class="card dashboard-card bg-primary text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Total Assets</h5>
+                <h2 class="display-6">{{ total_assets }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-card bg-success text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Active Assets</h5>
+                <h2 class="display-6">{{ active_assets }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-card bg-info text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Total Cost</h5>
+                <h2 class="display-6">{{ format_currency(total_original_cost) }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card dashboard-card bg-warning text-white mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Current Book Value</h5>
+                <h2 class="display-6">{{ format_currency(total_book_value) }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Assets by Category Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Assets by Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="assetsByCategoryChart" height="250"></canvas>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('fixed_assets.asset_categories') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-cog"></i> Manage Categories
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Assets by Location Chart -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Assets by Location</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="assetsByLocationChart" height="250"></canvas>
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('fixed_assets.asset_locations') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-cog"></i> Manage Locations
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Assets -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Recently Added Assets</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_assets %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Asset Number</th>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Acquisition Date</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for asset in recent_assets %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('fixed_assets.asset_detail', asset_id=asset.id) }}">
+                                        {{ asset.asset_number }}
+                                    </a>
+                                </td>
+                                <td>{{ asset.name }}</td>
+                                <td>{{ asset.category.name }}</td>
+                                <td>{{ asset.acquisition_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ format_currency(asset.current_value or asset.purchase_cost) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted">No assets added yet</p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('fixed_assets.assets') }}" class="btn btn-outline-primary btn-sm">View All Assets</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Upcoming Maintenance -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Upcoming Maintenance</h5>
+            </div>
+            <div class="card-body">
+                {% if upcoming_maintenance %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Type</th>
+                                <th>Due Date</th>
+                                <th>Provider</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for maintenance in upcoming_maintenance %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('fixed_assets.asset_detail', asset_id=maintenance.asset.id) }}">
+                                        {{ maintenance.asset.name }}
+                                    </a>
+                                </td>
+                                <td>{{ maintenance.maintenance_type.name }}</td>
+                                <td>{{ maintenance.next_maintenance_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ maintenance.provider or 'Not specified' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center text-muted">No upcoming maintenance scheduled</p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('fixed_assets.maintenance_list') }}" class="btn btn-outline-primary btn-sm">View All Maintenance</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Asset Condition Summary -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Asset Condition Summary</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="assetsByConditionChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Depreciation Summary -->
+    <div class="col-md-6 mb-4">
+        <div class="card dashboard-card">
+            <div class="card-header">
+                <h5 class="mb-0">Depreciation Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <h5>Total Original Cost</h5>
+                            <h3>{{ format_currency(total_original_cost) }}</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-center mb-3">
+                            <h5>Total Depreciation</h5>
+                            <h3>{{ format_currency(total_depreciation) }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-3">
+                    <h5>Current Book Value</h5>
+                    <h3>{{ format_currency(total_book_value) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Assets by Category Chart
+        var categoryCtx = document.getElementById('assetsByCategoryChart').getContext('2d');
+        var categoryChart = new Chart(categoryCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ category_names | safe }},
+                datasets: [{
+                    data: {{ category_counts | safe }},
+                    backgroundColor: [
+                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                        '#5a5c69', '#6f42c1', '#20c9a6', '#fd7e14', '#6610f2'
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+        
+        // Assets by Location Chart
+        var locationCtx = document.getElementById('assetsByLocationChart').getContext('2d');
+        var locationChart = new Chart(locationCtx, {
+            type: 'pie',
+            data: {
+                labels: {{ location_names | safe }},
+                datasets: [{
+                    data: {{ location_counts | safe }},
+                    backgroundColor: [
+                        '#1cc88a', '#4e73df', '#f6c23e', '#e74a3b', '#36b9cc',
+                        '#6f42c1', '#5a5c69', '#20c9a6', '#fd7e14', '#6610f2'
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+
+        // Assets by Condition Chart
+        var conditionCtx = document.getElementById('assetsByConditionChart').getContext('2d');
+        var conditionChart = new Chart(conditionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: {{ condition_names | safe }},
+                datasets: [{
+                    data: {{ condition_counts | safe }},
+                    backgroundColor: [
+                        '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                        '#4e73df', '#5a5c69', '#6f42c1', '#20c9a6'
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

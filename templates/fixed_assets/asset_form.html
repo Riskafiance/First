@@ -1,0 +1,295 @@
+{% extends 'layout.html' %}
+
+{% block title %}{% if asset %}Edit{% else %}Add{% endif %} Fixed Asset{% endblock %}
+
+{% block page_title %}{% if asset %}Edit{% else %}Add{% endif %} Fixed Asset{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ url_for('fixed_assets.assets') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Assets
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{% if asset %}Edit{% else %}Add{% endif %} Fixed Asset</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            <ul class="nav nav-tabs mb-4" id="assetFormTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-info" type="button" role="tab" aria-controls="general-info" aria-selected="true">General Information</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="financial-tab" data-bs-toggle="tab" data-bs-target="#financial-info" type="button" role="tab" aria-controls="financial-info" aria-selected="false">Financial Details</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="additional-tab" data-bs-toggle="tab" data-bs-target="#additional-info" type="button" role="tab" aria-controls="additional-info" aria-selected="false">Additional Information</button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="assetFormTabContent">
+                <!-- General Information Tab -->
+                <div class="tab-pane fade show active" id="general-info" role="tabpanel" aria-labelledby="general-tab">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Asset Name*</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ asset.name if asset else '' }}" required>
+                            <div class="invalid-feedback">
+                                Asset name is required.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="category_id" class="form-label">Category*</label>
+                            <select class="form-select" id="category_id" name="category_id" required>
+                                <option value="">Select a category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if asset and asset.category_id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select a category.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="status_id" class="form-label">Status*</label>
+                            <select class="form-select" id="status_id" name="status_id" required>
+                                <option value="">Select status</option>
+                                {% for status in statuses %}
+                                <option value="{{ status.id }}" {% if asset and asset.status_id == status.id %}selected{% endif %}>
+                                    {{ status.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="invalid-feedback">
+                                Please select a status.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="condition_id" class="form-label">Condition</label>
+                            <select class="form-select" id="condition_id" name="condition_id">
+                                <option value="">Select condition</option>
+                                {% for condition in conditions %}
+                                <option value="{{ condition.id }}" {% if asset and asset.condition_id == condition.id %}selected{% endif %}>
+                                    {{ condition.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="location_id" class="form-label">Location</label>
+                            <select class="form-select" id="location_id" name="location_id">
+                                <option value="">Select location</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}" {% if asset and asset.location_id == location.id %}selected{% endif %}>
+                                    {{ location.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="vendor_id" class="form-label">Vendor/Supplier</label>
+                            <select class="form-select" id="vendor_id" name="vendor_id">
+                                <option value="">Select vendor</option>
+                                {% for vendor in vendors %}
+                                <option value="{{ vendor.id }}" {% if asset and asset.vendor_id == vendor.id %}selected{% endif %}>
+                                    {{ vendor.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ asset.description if asset else '' }}</textarea>
+                    </div>
+                </div>
+                
+                <!-- Financial Details Tab -->
+                <div class="tab-pane fade" id="financial-info" role="tabpanel" aria-labelledby="financial-tab">
+                    <div class="row">
+                        {% if not asset %}
+                        <div class="col-md-6 mb-3">
+                            <label for="acquisition_date" class="form-label">Acquisition Date*</label>
+                            <input type="date" class="form-control" id="acquisition_date" name="acquisition_date" required>
+                            <div class="invalid-feedback">
+                                Acquisition date is required.
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="purchase_cost" class="form-label">Purchase Cost*</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="purchase_cost" name="purchase_cost" step="0.01" min="0" required>
+                                <div class="invalid-feedback">
+                                    Purchase cost is required.
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Acquisition Date</label>
+                            <p class="form-control-plaintext">{{ asset.acquisition_date.strftime('%Y-%m-%d') }}</p>
+                            <small class="text-muted">Cannot be changed after asset creation</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Purchase Cost</label>
+                            <p class="form-control-plaintext">{{ format_currency(asset.purchase_cost) }}</p>
+                            <small class="text-muted">Cannot be changed after asset creation</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="salvage_value" class="form-label">Salvage Value</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="salvage_value" name="salvage_value" value="{{ asset.salvage_value if asset else '' }}" step="0.01" min="0">
+                            </div>
+                            <small class="text-muted">Estimated value at the end of useful life</small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="useful_life_years" class="form-label">Useful Life (Years)*</label>
+                            <input type="number" class="form-control" id="useful_life_years" name="useful_life_years" value="{{ asset.useful_life_years if asset else '' }}" min="1" max="100" required>
+                            <div class="invalid-feedback">
+                                Useful life is required.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="depreciation_method" class="form-label">Depreciation Method*</label>
+                        <select class="form-select" id="depreciation_method" name="depreciation_method" required>
+                            <option value="">Select depreciation method</option>
+                            <option value="straight-line" {% if asset and asset.depreciation_method == 'straight-line' %}selected{% endif %}>Straight-line</option>
+                            <option value="declining-balance" {% if asset and asset.depreciation_method == 'declining-balance' %}selected{% endif %}>Declining Balance</option>
+                        </select>
+                        <div class="invalid-feedback">
+                            Please select a depreciation method.
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Information Tab -->
+                <div class="tab-pane fade" id="additional-info" role="tabpanel" aria-labelledby="additional-tab">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="serial_number" class="form-label">Serial Number</label>
+                            <input type="text" class="form-control" id="serial_number" name="serial_number" value="{{ asset.serial_number if asset else '' }}">
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="warranty_expiry_date" class="form-label">Warranty Expiry Date</label>
+                            <input type="date" class="form-control" id="warranty_expiry_date" name="warranty_expiry_date" value="{{ asset.warranty_expiry_date.strftime('%Y-%m-%d') if asset and asset.warranty_expiry_date else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ asset.notes if asset else '' }}</textarea>
+                    </div>
+                    
+                    <!-- Image URL for future implementation -->
+                    <div class="mb-3">
+                        <label for="image_url" class="form-label">Image URL</label>
+                        <input type="text" class="form-control" id="image_url" name="image_url" value="{{ asset.image_url if asset else '' }}">
+                        <small class="text-muted">URL to an image of the asset (future: file upload)</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 d-flex justify-content-between">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if asset %}Update{% else %}Save{% endif %} Asset
+                </button>
+                <a href="{{ url_for('fixed_assets.assets') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Bootstrap form validation
+    (function() {
+        'use strict';
+        window.addEventListener('load', function() {
+            var forms = document.getElementsByClassName('needs-validation');
+            var validation = Array.prototype.filter.call(forms, function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (form.checkValidity() === false) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        
+                        // Find the first invalid element and its tab
+                        const invalidElement = form.querySelector(':invalid');
+                        if (invalidElement) {
+                            // Get the tab pane that contains the invalid field
+                            const tabPane = invalidElement.closest('.tab-pane');
+                            if (tabPane) {
+                                // Get tab ID
+                                const tabId = tabPane.id;
+                                // Activate the tab
+                                const tab = document.querySelector(`[data-bs-target="#${tabId}"]`);
+                                if (tab) {
+                                    const bsTab = new bootstrap.Tab(tab);
+                                    bsTab.show();
+                                }
+                            }
+                        }
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }, false);
+    })();
+    
+    // Update category-based defaults (depreciation method, useful life)
+    document.addEventListener('DOMContentLoaded', function() {
+        const categorySelect = document.getElementById('category_id');
+        const depreciationMethodSelect = document.getElementById('depreciation_method');
+        const usefulLifeInput = document.getElementById('useful_life_years');
+        
+        if (categorySelect && depreciationMethodSelect && usefulLifeInput) {
+            categorySelect.addEventListener('change', function() {
+                // In a real implementation, this would make an AJAX call to get category details
+                // For the prototype, we'll just provide a simple example
+                const categoryId = this.value;
+                if (categoryId) {
+                    // This is where you'd fetch category defaults and apply them
+                    // For now, we'll just add a placeholder message
+                    const categoryText = this.options[this.selectedIndex].text;
+                    console.log(`Selected category: ${categoryText} (ID: ${categoryId})`);
+                    // Example: set defaults based on category (in a real implementation, this would come from the backend)
+                    if (!depreciationMethodSelect.value) {
+                        // Set a default method
+                        depreciationMethodSelect.value = 'straight-line';
+                    }
+                    if (!usefulLifeInput.value) {
+                        // Set a default useful life
+                        usefulLifeInput.value = '5';
+                    }
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

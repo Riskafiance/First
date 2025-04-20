@@ -1,0 +1,123 @@
+{% extends 'layout.html' %}
+
+{% block title %}{% if category %}Edit{% else %}Add{% endif %} Asset Category{% endblock %}
+
+{% block page_title %}{% if category %}Edit{% else %}Add{% endif %} Asset Category{% endblock %}
+
+{% block page_actions %}
+    <a href="{{ url_for('fixed_assets.asset_categories') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Categories
+    </a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">{% if category %}Edit{% else %}Add{% endif %} Asset Category</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" class="needs-validation" novalidate>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="name" class="form-label">Category Name*</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ category.name if category else '' }}" required>
+                    <div class="invalid-feedback">
+                        Category name is required.
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="depreciation_method" class="form-label">Default Depreciation Method</label>
+                    <select class="form-select" id="depreciation_method" name="depreciation_method">
+                        <option value="" {% if not category or not category.depreciation_method %}selected{% endif %}>Select method (optional)</option>
+                        <option value="straight-line" {% if category and category.depreciation_method == 'straight-line' %}selected{% endif %}>Straight-line</option>
+                        <option value="declining-balance" {% if category and category.depreciation_method == 'declining-balance' %}selected{% endif %}>Declining Balance</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="useful_life_years" class="form-label">Default Useful Life (Years)</label>
+                    <input type="number" class="form-control" id="useful_life_years" name="useful_life_years" value="{{ category.useful_life_years if category else '' }}" min="1" max="100">
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <textarea class="form-control" id="description" name="description" rows="3">{{ category.description if category else '' }}</textarea>
+                </div>
+            </div>
+            
+            <h5 class="mt-4 mb-3">Accounting Configuration</h5>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="asset_account_id" class="form-label">Asset Account</label>
+                    <select class="form-select" id="asset_account_id" name="asset_account_id">
+                        <option value="">Select an account</option>
+                        {% for account in asset_accounts %}
+                        <option value="{{ account.id }}" {% if category and category.asset_account_id == account.id %}selected{% endif %}>
+                            {{ account.code }} - {{ account.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Account where the asset value will be recorded.</small>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="depreciation_account_id" class="form-label">Depreciation Expense Account</label>
+                    <select class="form-select" id="depreciation_account_id" name="depreciation_account_id">
+                        <option value="">Select an account</option>
+                        {% for account in expense_accounts %}
+                        <option value="{{ account.id }}" {% if category and category.depreciation_account_id == account.id %}selected{% endif %}>
+                            {{ account.code }} - {{ account.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Expense account where depreciation will be recorded.</small>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="accumulated_depreciation_account_id" class="form-label">Accumulated Depreciation Account</label>
+                    <select class="form-select" id="accumulated_depreciation_account_id" name="accumulated_depreciation_account_id">
+                        <option value="">Select an account</option>
+                        {% for account in asset_accounts %}
+                        <option value="{{ account.id }}" {% if category and category.accumulated_depreciation_account_id == account.id %}selected{% endif %}>
+                            {{ account.code }} - {{ account.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text text-muted">Account where accumulated depreciation will be recorded.</small>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if category %}Update{% else %}Save{% endif %} Category
+                </button>
+                <a href="{{ url_for('fixed_assets.asset_categories') }}" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Bootstrap form validation
+    (function() {
+        'use strict';
+        window.addEventListener('load', function() {
+            var forms = document.getElementsByClassName('needs-validation');
+            var validation = Array.prototype.filter.call(forms, function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (form.checkValidity() === false) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }, false);
+    })();
+</script>
+{% endblock %}
