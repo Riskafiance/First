@@ -62,6 +62,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if 'inventory.' in request.endpoint %}active{% endif %}" href="{{ url_for('inventory.dashboard') }}">
+                            <i class="fas fa-boxes"></i>
+                            <span>Inventory</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'entities.customers' %}active{% endif %}" href="{{ url_for('entities.customers') }}">
                             <i class="fas fa-users"></i>
                             <span>Customers</span>

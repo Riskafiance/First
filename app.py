@@ -58,6 +58,7 @@ from routes.journals import journals_bp
 from routes.invoices import invoices_bp
 from routes.expenses import expenses_bp
 from routes.entities import entities_bp
+from routes.inventory import inventory_bp
 from routes.reports import reports_bp
 
 app.register_blueprint(auth_bp)
@@ -67,6 +68,7 @@ app.register_blueprint(journals_bp)
 app.register_blueprint(invoices_bp)
 app.register_blueprint(expenses_bp)
 app.register_blueprint(entities_bp)
+app.register_blueprint(inventory_bp, url_prefix='/inventory')
 app.register_blueprint(reports_bp)
 
 # Register error handlers

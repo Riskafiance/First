@@ -245,3 +245,188 @@ class ExpenseItem(db.Model):
     
     def __repr__(self):
         return f'<ExpenseItem {self.id} - {self.description}>'
+
+# Product Category
+class ProductCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<ProductCategory {self.name}>'
+
+# UOM - Unit of Measure
+class UnitOfMeasure(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)
+    abbreviation = db.Column(db.String(10), nullable=False, unique=True)
+    
+    def __repr__(self):
+        return f'<UnitOfMeasure {self.abbreviation}>'
+
+# Products/Inventory Items
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    sku = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('product_category.id'))
+    category = db.relationship('ProductCategory')
+    uom_id = db.Column(db.Integer, db.ForeignKey('unit_of_measure.id'), nullable=False)
+    uom = db.relationship('UnitOfMeasure')
+    cost_price = db.Column(db.Numeric(14, 2), default=0)
+    sales_price = db.Column(db.Numeric(14, 2), default=0)
+    reorder_level = db.Column(db.Numeric(10, 2), default=0)
+    preferred_vendor_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
+    preferred_vendor = db.relationship('Entity')
+    asset_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    asset_account = db.relationship('Account', foreign_keys=[asset_account_id])
+    expense_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    expense_account = db.relationship('Account', foreign_keys=[expense_account_id])
+    revenue_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    revenue_account = db.relationship('Account', foreign_keys=[revenue_account_id])
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    @property
+    def current_stock(self):
+        """Get current stock quantity from inventory transactions"""
+        from sqlalchemy import func
+        
+        # Calculate total quantity from transactions
+        total_quantity = db.session.query(
+            func.sum(
+                func.case(
+                    [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
+                    else_=0
+                ) - 
+                func.case(
+                    [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
+                    else_=0
+                )
+            )
+        ).filter(InventoryTransaction.product_id == self.id).scalar() or 0
+        
+        return total_quantity
+    
+    def __repr__(self):
+        return f'<Product {self.sku} - {self.name}>'
+
+# Inventory Transaction Types
+class InventoryTransactionType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    PURCHASE = 'Purchase'
+    SALE = 'Sale'
+    ADJUSTMENT = 'Adjustment'
+    RETURN_IN = 'Return In'
+    RETURN_OUT = 'Return Out'
+    TRANSFER = 'Transfer'
+    
+    def __repr__(self):
+        return f'<InventoryTransactionType {self.name}>'
+
+# Inventory Transactions
+class InventoryTransaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    transaction_type = db.Column(db.String(5), nullable=False)  # IN or OUT
+    transaction_type_id = db.Column(db.Integer, db.ForeignKey('inventory_transaction_type.id'))
+    transaction_type_obj = db.relationship('InventoryTransactionType')
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product = db.relationship('Product')
+    quantity = db.Column(db.Numeric(10, 2), nullable=False)
+    unit_price = db.Column(db.Numeric(14, 2))
+    location = db.Column(db.String(100))
+    reference_type = db.Column(db.String(50))  # Invoice, PO, Adjustment, etc.
+    reference_id = db.Column(db.Integer)  # ID of the reference document
+    notes = db.Column(db.Text)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<InventoryTransaction {self.id} - {self.product.name} ({self.quantity})>'
+
+# Warehouse Locations
+class Warehouse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(20), unique=True, nullable=False)
+    address = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<Warehouse {self.code} - {self.name}>'
+
+# Purchase Order Status
+class PurchaseOrderStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    DRAFT = 'Draft'
+    SUBMITTED = 'Submitted'
+    APPROVED = 'Approved'
+    PARTIALLY_RECEIVED = 'Partially Received'
+    RECEIVED = 'Received'
+    CANCELLED = 'Cancelled'
+    
+    def __repr__(self):
+        return f'<PurchaseOrderStatus {self.name}>'
+
+# Purchase Orders
+class PurchaseOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    po_number = db.Column(db.String(20), unique=True, nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('entity.id'), nullable=False)
+    vendor = db.relationship('Entity')
+    order_date = db.Column(db.Date, nullable=False)
+    expected_delivery_date = db.Column(db.Date)
+    status_id = db.Column(db.Integer, db.ForeignKey('purchase_order_status.id'), nullable=False)
+    status = db.relationship('PurchaseOrderStatus')
+    shipping_address = db.Column(db.String(255))
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouse.id'))
+    warehouse = db.relationship('Warehouse')
+    total_amount = db.Column(db.Numeric(14, 2), default=0)
+    notes = db.Column(db.Text)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<PurchaseOrder {self.po_number}>'
+
+# Purchase Order Items
+class PurchaseOrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    po_id = db.Column(db.Integer, db.ForeignKey('purchase_order.id'), nullable=False)
+    po = db.relationship('PurchaseOrder', backref='items')
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product = db.relationship('Product')
+    description = db.Column(db.String(255))
+    quantity_ordered = db.Column(db.Numeric(10, 2), nullable=False)
+    quantity_received = db.Column(db.Numeric(10, 2), default=0)
+    unit_price = db.Column(db.Numeric(14, 2), nullable=False)
+    tax_rate = db.Column(db.Numeric(5, 2), default=0)
+    
+    @property
+    def line_total(self):
+        return self.quantity_ordered * self.unit_price
+    
+    def __repr__(self):
+        return f'<PurchaseOrderItem {self.id} - {self.product.name}>'
