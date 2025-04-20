@@ -5,163 +5,143 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <a href="{{ url_for('inventory.products') }}" class="btn btn-outline-primary">
-        <i class="fas fa-boxes me-1"></i> Manage Products
+    <a href="{{ url_for('inventory.products') }}" class="btn btn-primary">
+        <i class="fas fa-box me-1"></i> Products
     </a>
-    <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-primary ms-2">
+    <a href="{{ url_for('inventory.categories') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-tags me-1"></i> Categories
+    </a>
+    <a href="{{ url_for('inventory.uoms') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-ruler me-1"></i> Units
+    </a>
+    <a href="{{ url_for('inventory.warehouses') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-warehouse me-1"></i> Warehouses
+    </a>
+    <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-secondary">
         <i class="fas fa-shopping-cart me-1"></i> Purchase Orders
     </a>
-    <div class="dropdown ms-2">
-        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="fas fa-cog me-1"></i> Settings
-        </button>
-        <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
-            <li><a class="dropdown-item" href="{{ url_for('inventory.categories') }}">Product Categories</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('inventory.uoms') }}">Units of Measure</a></li>
-            <li><a class="dropdown-item" href="{{ url_for('inventory.warehouses') }}">Warehouses</a></li>
-        </ul>
-    </div>
 </div>
 {% endblock %}
 
 {% block content %}
 <div class="row mb-4">
-    <div class="col-lg-4">
+    <!-- Inventory Value Card -->
+    <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
         <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Inventory Summary</h5>
                 <div class="d-flex align-items-center mb-3">
-                    <div class="me-4">
-                        <h2 class="mb-0">${{ "{:,.2f}".format(inventory_value) }}</h2>
-                        <span class="text-muted">Total Inventory Value</span>
+                    <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-cubes fa-2x text-primary"></i>
                     </div>
-                    <div class="text-primary">
-                        <i class="fas fa-warehouse fa-3x"></i>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Inventory Value</h6>
+                        <h3 class="mb-0">${{ '{:,.2f}'.format(inventory_value) }}</h3>
                     </div>
                 </div>
-            </div>
-            <div class="card-footer bg-transparent border-top">
-                <a href="{{ url_for('inventory.stock_valuation_report') }}" class="text-decoration-none">View Stock Valuation Report <i class="fas fa-arrow-right ms-1"></i></a>
+                <p class="card-text text-muted">Total value of current inventory</p>
             </div>
         </div>
     </div>
     
-    <div class="col-lg-4">
+    <!-- Products Count Card -->
+    <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
         <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Low Stock Alert</h5>
-                {% if low_stock %}
                 <div class="d-flex align-items-center mb-3">
-                    <div class="me-4">
-                        <h2 class="mb-0 text-danger">{{ low_stock|length }}</h2>
-                        <span class="text-muted">Products Below Reorder Level</span>
+                    <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-box fa-2x text-success"></i>
                     </div>
-                    <div class="text-danger">
-                        <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Products</h6>
+                        <h3 class="mb-0">{{ category_counts|sum(attribute='1') }}</h3>
                     </div>
                 </div>
-                
-                <ul class="list-group list-group-flush">
-                    {% for item in low_stock[:3] %}
-                    <li class="list-group-item px-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span>{{ item.name }}</span>
-                            <span class="badge bg-danger">{{ item.current_stock }} {{ item.uom }}</span>
-                        </div>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="d-flex align-items-center mb-3">
-                    <div class="me-4">
-                        <h2 class="mb-0 text-success">0</h2>
-                        <span class="text-muted">Products Below Reorder Level</span>
-                    </div>
-                    <div class="text-success">
-                        <i class="fas fa-check-circle fa-3x"></i>
-                    </div>
-                </div>
-                <p>All inventory levels are sufficient.</p>
-                {% endif %}
-            </div>
-            <div class="card-footer bg-transparent border-top">
-                <a href="{{ url_for('inventory.low_stock_report') }}" class="text-decoration-none">View Low Stock Report <i class="fas fa-arrow-right ms-1"></i></a>
+                <p class="card-text text-muted">Total active products in inventory</p>
             </div>
         </div>
     </div>
     
-    <div class="col-lg-4">
+    <!-- Low Stock Card -->
+    <div class="col-md-6 col-lg-3 mb-4 mb-lg-0">
         <div class="card h-100">
             <div class="card-body">
-                <h5 class="card-title">Purchase Orders</h5>
                 <div class="d-flex align-items-center mb-3">
-                    <div>
-                        <canvas id="poStatusChart" width="100" height="100"></canvas>
+                    <div class="flex-shrink-0 bg-warning bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Low Stock</h6>
+                        <h3 class="mb-0">{{ low_stock|length }}</h3>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span><i class="fas fa-circle text-warning me-1"></i> Draft</span>
-                        <span>{{ po_status_data.get('Draft', 0) }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span><i class="fas fa-circle text-info me-1"></i> Submitted</span>
-                        <span>{{ po_status_data.get('Submitted', 0) }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span><i class="fas fa-circle text-primary me-1"></i> Approved</span>
-                        <span>{{ po_status_data.get('Approved', 0) }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span><i class="fas fa-circle text-success me-1"></i> Received</span>
-                        <span>{{ po_status_data.get('Received', 0) }}</span>
-                    </div>
-                </div>
+                <a href="{{ url_for('inventory.low_stock_report') }}" class="card-text text-muted stretched-link">Products below reorder levels</a>
             </div>
-            <div class="card-footer bg-transparent border-top">
-                <a href="{{ url_for('inventory.purchase_orders') }}" class="text-decoration-none">Manage Purchase Orders <i class="fas fa-arrow-right ms-1"></i></a>
+        </div>
+    </div>
+    
+    <!-- PO Status Card -->
+    <div class="col-md-6 col-lg-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0 bg-info bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-shopping-cart fa-2x text-info"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Open POs</h6>
+                        <h3 class="mb-0">{{ po_status_data.get('Submitted', 0) + po_status_data.get('Approved', 0) + po_status_data.get('Partially Received', 0) }}</h3>
+                    </div>
+                </div>
+                <a href="{{ url_for('inventory.purchase_orders') }}" class="card-text text-muted stretched-link">Open purchase orders</a>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row">
+<div class="row mb-4">
+    <!-- Category Distribution -->
     <div class="col-lg-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Recent Inventory Transactions</h5>
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Products by Category</h5>
+                <a href="{{ url_for('inventory.categories') }}" class="btn btn-sm btn-outline-secondary">
+                    View All
+                </a>
             </div>
-            <div class="card-body p-0">
+            <div class="card-body px-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table align-middle">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Product</th>
-                                <th>Type</th>
-                                <th>Quantity</th>
+                                <th>Category</th>
+                                <th class="text-end">Count</th>
+                                <th class="w-50">Distribution</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for transaction in recent_transactions %}
-                            <tr>
-                                <td>{{ transaction.transaction_date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ transaction.product.name }}</td>
-                                <td>
-                                    {% if transaction.transaction_type == 'IN' %}
-                                    <span class="badge bg-success">IN</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">OUT</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ transaction.quantity }} {{ transaction.product.uom.abbreviation }}</td>
-                            </tr>
-                            {% endfor %}
-                            
-                            {% if not recent_transactions %}
-                            <tr>
-                                <td colspan="4" class="text-center">No recent transactions</td>
-                            </tr>
+                            {% set total = category_counts|sum(attribute='1') %}
+                            {% if total > 0 %}
+                                {% for name, count in category_counts %}
+                                <tr>
+                                    <td>{{ name }}</td>
+                                    <td class="text-end">{{ count }}</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar" role="progressbar" 
+                                                style="width: {{ (count / total * 100)|round|int }}%" 
+                                                aria-valuenow="{{ (count / total * 100)|round|int }}" 
+                                                aria-valuemin="0" 
+                                                aria-valuemax="100">
+                                                {{ (count / total * 100)|round|int }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center">No products found</td>
+                                </tr>
                             {% endif %}
                         </tbody>
                     </table>
@@ -170,101 +150,128 @@
         </div>
     </div>
     
+    <!-- Purchase Order Status -->
     <div class="col-lg-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Products by Category</h5>
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Purchase Order Status</h5>
+                <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-sm btn-outline-secondary">
+                    View All
+                </a>
             </div>
             <div class="card-body">
-                <canvas id="categoryChart" width="400" height="300"></canvas>
+                {% set colors = {
+                    'Draft': 'secondary',
+                    'Submitted': 'primary',
+                    'Approved': 'info',
+                    'Partially Received': 'warning',
+                    'Received': 'success',
+                    'Cancelled': 'danger'
+                } %}
+                
+                {% set po_total = po_status_data.values()|sum %}
+                {% if po_total > 0 %}
+                    {% for status, color in colors.items() %}
+                        {% set count = po_status_data.get(status, 0) %}
+                        {% set percent = (count / po_total * 100)|round|int if po_total > 0 else 0 %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>{{ status }}</span>
+                                <span>{{ count }} ({{ percent }}%)</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-{{ color }}" role="progressbar" 
+                                    style="width: {{ percent }}%" 
+                                    aria-valuenow="{{ percent }}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <p class="mb-0">No purchase orders found</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
-{{ super() }}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // PO Status Chart
-        const poCtx = document.getElementById('poStatusChart').getContext('2d');
-        const poData = {
-            labels: ['Draft', 'Submitted', 'Approved', 'Partially Received', 'Received', 'Cancelled'],
-            datasets: [{
-                data: [
-                    {{ po_status_data.get('Draft', 0) }},
-                    {{ po_status_data.get('Submitted', 0) }},
-                    {{ po_status_data.get('Approved', 0) }},
-                    {{ po_status_data.get('Partially Received', 0) }},
-                    {{ po_status_data.get('Received', 0) }},
-                    {{ po_status_data.get('Cancelled', 0) }}
-                ],
-                backgroundColor: [
-                    '#ffc107', // warning - Draft
-                    '#17a2b8', // info - Submitted
-                    '#007bff', // primary - Approved
-                    '#6f42c1', // purple - Partially Received
-                    '#28a745', // success - Received
-                    '#dc3545', // danger - Cancelled
-                ]
-            }]
-        };
-        
-        new Chart(poCtx, {
-            type: 'doughnut',
-            data: poData,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                cutout: '70%'
-            }
-        });
-        
-        // Category Chart
-        const categoryData = {
-            labels: [{% for name, count in category_counts %}'{{ name }}',{% endfor %}],
-            datasets: [{
-                label: 'Products',
-                data: [{% for name, count in category_counts %}{{ count }},{% endfor %}],
-                backgroundColor: [
-                    '#007bff',
-                    '#28a745',
-                    '#ffc107',
-                    '#17a2b8',
-                    '#6f42c1',
-                    '#fd7e14',
-                    '#20c997',
-                    '#e83e8c'
-                ]
-            }]
-        };
-        
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        new Chart(categoryCtx, {
-            type: 'bar',
-            data: categoryData,
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: false
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0
-                        }
-                    }
-                }
-            }
-        });
-    });
-</script>
+<div class="row">
+    <!-- Recent Inventory Transactions -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Inventory Transactions</h5>
+                <div>
+                    <a href="{{ url_for('inventory.products') }}" class="btn btn-sm btn-outline-secondary">
+                        View All Products
+                    </a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Product</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Reference</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tx in recent_transactions %}
+                            <tr>
+                                <td>{{ tx.transaction_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('inventory.view_product', product_id=tx.product.id) }}">
+                                        {{ tx.product.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if tx.transaction_type == 'IN' %}
+                                    <span class="badge bg-success">IN</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">OUT</span>
+                                    {% endif %}
+                                    {% if tx.transaction_type_obj %}
+                                    <small class="text-muted">{{ tx.transaction_type_obj.name }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ tx.quantity }} {{ tx.product.uom.abbreviation }}</td>
+                                <td>
+                                    {% if tx.reference_type %}
+                                    {{ tx.reference_type }}
+                                    {% if tx.reference_id %}
+                                    #{{ tx.reference_id }}
+                                    {% endif %}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if tx.created_by %}
+                                    {{ tx.created_by.username }}
+                                    {% else %}
+                                    System
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No recent transactions</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

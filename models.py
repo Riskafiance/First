@@ -299,20 +299,21 @@ class Product(db.Model):
         from sqlalchemy import func
         
         # Calculate total quantity from transactions
-        total_quantity = db.session.query(
-            func.sum(
-                func.case(
-                    [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                    else_=0
-                ) - 
-                func.case(
-                    [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                    else_=0
-                )
-            )
-        ).filter(InventoryTransaction.product_id == self.id).scalar() or 0
+        in_quantity = db.session.query(
+            func.sum(InventoryTransaction.quantity)
+        ).filter(
+            InventoryTransaction.product_id == self.id,
+            InventoryTransaction.transaction_type == 'IN'
+        ).scalar() or 0
         
-        return total_quantity
+        out_quantity = db.session.query(
+            func.sum(InventoryTransaction.quantity)
+        ).filter(
+            InventoryTransaction.product_id == self.id,
+            InventoryTransaction.transaction_type == 'OUT'
+        ).scalar() or 0
+        
+        return in_quantity - out_quantity
     
     def __repr__(self):
         return f'<Product {self.sku} - {self.name}>'
