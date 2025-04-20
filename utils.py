@@ -452,3 +452,20 @@ def format_currency(amount, symbol='$', decimal_places=2):
         return formatted
     except (ValueError, TypeError):
         return f"{symbol}0.00"
+
+def get_next_sequence(sequence_name, initial_value=1):
+    """Get next sequence number for various document types"""
+    # Check if Sequence model exists in the database
+    from models import Sequence
+    
+    sequence = Sequence.query.filter_by(name=sequence_name).first()
+    
+    if not sequence:
+        sequence = Sequence(name=sequence_name, value=initial_value)
+        db.session.add(sequence)
+        db.session.commit()
+        return initial_value
+    else:
+        sequence.value += 1
+        db.session.commit()
+        return sequence.value

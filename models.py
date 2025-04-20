@@ -675,6 +675,15 @@ class Warehouse(db.Model):
     def __repr__(self):
         return f'<Warehouse {self.code} - {self.name}>'
 
+# Sequence table for generating sequential numbers
+class Sequence(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    value = db.Column(db.Integer, default=0)
+    
+    def __repr__(self):
+        return f'<Sequence {self.name}: {self.value}>'
+
 # Purchase Order Status
 class PurchaseOrderStatus(db.Model):
     id = db.Column(db.Integer, primary_key=True)

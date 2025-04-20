@@ -68,6 +68,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if 'fixed_assets.' in request.endpoint %}active{% endif %}" href="{{ url_for('fixed_assets.dashboard') }}">
+                            <i class="fas fa-building"></i>
+                            <span>Fixed Assets</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'entities.customers' %}active{% endif %}" href="{{ url_for('entities.customers') }}">
                             <i class="fas fa-users"></i>
                             <span>Customers</span>
