@@ -238,7 +238,8 @@
             const poNumber = button.getAttribute('data-po-number');
             
             document.getElementById('poNumber').textContent = poNumber;
-            document.getElementById('deleteForm').action = "{{ url_for('inventory.delete_purchase_order', po_id=0) }}".replace('0', poId);
+            // Direct construction of URL since this route might not exist yet
+            document.getElementById('deleteForm').action = "/inventory/purchase-orders/" + poId + "/delete";
         });
     });
 </script>
