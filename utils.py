@@ -420,3 +420,35 @@ def export_journal_entries_to_csv(start_date=None, end_date=None):
     items_df = pd.DataFrame(all_items)
     
     return entries_df, items_df
+
+def generate_asset_number():
+    """Generate an asset number with format FA-YYYYMM-XXXX"""
+    prefix = "FA"
+    date_part = datetime.now().strftime("%Y%m")
+    
+    # Get the latest asset for current month
+    latest_asset = db.session.query(FixedAsset).filter(
+        FixedAsset.asset_number.like(f"{prefix}-{date_part}-%")
+    ).order_by(
+        FixedAsset.asset_number.desc()
+    ).first()
+    
+    if latest_asset:
+        # Extract the sequence number and increment
+        seq_part = latest_asset.asset_number.split('-')[2]
+        new_seq = int(seq_part) + 1
+    else:
+        new_seq = 1
+    
+    return f"{prefix}-{date_part}-{new_seq:04d}"
+
+def format_currency(amount, symbol='$', decimal_places=2):
+    """Format a number as currency with the specified symbol and decimal places"""
+    if amount is None:
+        return f"{symbol}0.00"
+    
+    try:
+        formatted = f"{symbol}{float(amount):,.{decimal_places}f}"
+        return formatted
+    except (ValueError, TypeError):
+        return f"{symbol}0.00"

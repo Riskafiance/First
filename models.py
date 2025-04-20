@@ -1,4 +1,6 @@
-from datetime import datetime
+from datetime import datetime, date
+from dateutil.relativedelta import relativedelta
+from decimal import Decimal
 from app import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -357,6 +359,307 @@ class InventoryTransaction(db.Model):
     
     def __repr__(self):
         return f'<InventoryTransaction {self.id} - {self.product.name} ({self.quantity})>'
+
+#
+# Fixed Asset Management Models
+#
+
+# Asset Category
+class AssetCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    depreciation_method = db.Column(db.String(50))  # straight-line, declining-balance, etc.
+    useful_life_years = db.Column(db.Integer)  # Default useful life in years for this category
+    asset_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    asset_account = db.relationship('Account', foreign_keys=[asset_account_id])
+    depreciation_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    depreciation_account = db.relationship('Account', foreign_keys=[depreciation_account_id])
+    accumulated_depreciation_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    accumulated_depreciation_account = db.relationship('Account', foreign_keys=[accumulated_depreciation_account_id])
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetCategory {self.name}>'
+
+# Asset Location
+class AssetLocation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    address = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetLocation {self.name}>'
+
+# Asset Status
+class AssetStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    ACTIVE = 'Active'
+    DISPOSED = 'Disposed'
+    SOLD = 'Sold'
+    UNDER_MAINTENANCE = 'Under Maintenance'
+    EXPIRED = 'Expired'
+    
+    def __repr__(self):
+        return f'<AssetStatus {self.name}>'
+
+# Asset Condition
+class AssetCondition(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(255))
+    
+    # Constants
+    EXCELLENT = 'Excellent'
+    GOOD = 'Good'
+    FAIR = 'Fair'
+    POOR = 'Poor'
+    
+    def __repr__(self):
+        return f'<AssetCondition {self.name}>'
+
+# Fixed Asset
+class FixedAsset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_number = db.Column(db.String(50), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    category_id = db.Column(db.Integer, db.ForeignKey('asset_category.id'), nullable=False)
+    category = db.relationship('AssetCategory')
+    acquisition_date = db.Column(db.Date, nullable=False)
+    purchase_cost = db.Column(db.Numeric(14, 2), nullable=False)
+    salvage_value = db.Column(db.Numeric(14, 2), default=0)
+    useful_life_years = db.Column(db.Integer, nullable=False)  # In years
+    depreciation_method = db.Column(db.String(50), nullable=False)  # straight-line, declining-balance, etc.
+    last_depreciation_date = db.Column(db.Date)
+    current_value = db.Column(db.Numeric(14, 2))  # Book value after depreciation
+    location_id = db.Column(db.Integer, db.ForeignKey('asset_location.id'))
+    location = db.relationship('AssetLocation')
+    status_id = db.Column(db.Integer, db.ForeignKey('asset_status.id'), nullable=False)
+    status = db.relationship('AssetStatus')
+    condition_id = db.Column(db.Integer, db.ForeignKey('asset_condition.id'))
+    condition = db.relationship('AssetCondition')
+    vendor_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
+    vendor = db.relationship('Entity')
+    serial_number = db.Column(db.String(100))
+    warranty_expiry_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    is_fully_depreciated = db.Column(db.Boolean, default=False)
+    image_url = db.Column(db.String(255))
+    acquisition_journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    acquisition_journal_entry = db.relationship('JournalEntry', foreign_keys=[acquisition_journal_entry_id])
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    # Relationships
+    depreciation_entries = db.relationship('AssetDepreciation', back_populates='asset')
+    maintenance_records = db.relationship('AssetMaintenance', back_populates='asset')
+    
+    def calculate_monthly_depreciation(self):
+        """Calculate the monthly depreciation amount"""
+        depreciable_cost = float(self.purchase_cost) - float(self.salvage_value)
+        
+        if self.depreciation_method == 'straight-line':
+            # Straight-line depreciation
+            total_months = self.useful_life_years * 12
+            return depreciable_cost / total_months if total_months > 0 else 0
+        
+        elif self.depreciation_method == 'declining-balance':
+            # Double declining balance depreciation
+            annual_rate = 2 / self.useful_life_years if self.useful_life_years > 0 else 0
+            monthly_rate = annual_rate / 12
+            
+            # Get remaining book value from most recent depreciation
+            book_value = float(self.current_value or self.purchase_cost)
+            return book_value * monthly_rate
+        
+        return 0
+    
+    def calculate_depreciation_to_date(self, target_date=None):
+        """Calculate the total depreciation up to a given date"""
+        if not target_date:
+            target_date = date.today()
+        
+        # If asset is not acquired yet or already fully depreciated
+        if not self.acquisition_date or self.is_fully_depreciated:
+            return 0
+        
+        # Calculate months in service
+        start_date = self.acquisition_date
+        months_in_service = (
+            (target_date.year - start_date.year) * 12 + 
+            (target_date.month - start_date.month)
+        )
+        
+        # Calculate total depreciation
+        depreciable_cost = float(self.purchase_cost) - float(self.salvage_value)
+        
+        if self.depreciation_method == 'straight-line':
+            # Straight-line depreciation
+            total_months = self.useful_life_years * 12
+            monthly_depreciation = depreciable_cost / total_months if total_months > 0 else 0
+            
+            # Cap at total depreciable amount
+            total_depreciation = min(monthly_depreciation * months_in_service, depreciable_cost)
+            return total_depreciation
+        
+        elif self.depreciation_method == 'declining-balance':
+            # This is more complex and requires iterative calculation
+            # Get all recorded depreciation entries
+            recorded_depreciation = sum(float(entry.amount) for entry in self.depreciation_entries)
+            return recorded_depreciation
+        
+        return 0
+    
+    def get_current_book_value(self):
+        """Calculate the current book value of the asset"""
+        total_depreciation = self.calculate_depreciation_to_date()
+        return float(self.purchase_cost) - total_depreciation
+    
+    def get_remaining_useful_life(self):
+        """Calculate the remaining useful life in months"""
+        if not self.acquisition_date or self.is_fully_depreciated:
+            return 0
+        
+        total_months = self.useful_life_years * 12
+        months_used = (
+            (date.today().year - self.acquisition_date.year) * 12 + 
+            (date.today().month - self.acquisition_date.month)
+        )
+        
+        remaining = total_months - months_used
+        return max(0, remaining)
+    
+    def __repr__(self):
+        return f'<FixedAsset {self.asset_number} - {self.name}>'
+
+# Asset Depreciation Records
+class AssetDepreciation(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('fixed_asset.id'), nullable=False)
+    asset = db.relationship('FixedAsset', back_populates='depreciation_entries')
+    date = db.Column(db.Date, nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    book_value_before = db.Column(db.Numeric(14, 2), nullable=False)
+    book_value_after = db.Column(db.Numeric(14, 2), nullable=False)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetDepreciation {self.asset.name} - {self.date} - ${self.amount}>'
+
+# Asset Maintenance Type
+class MaintenanceType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    description = db.Column(db.String(255))
+    
+    # Constants
+    PREVENTIVE = 'Preventive'
+    CORRECTIVE = 'Corrective'
+    INSPECTION = 'Inspection'
+    UPGRADE = 'Upgrade'
+    
+    def __repr__(self):
+        return f'<MaintenanceType {self.name}>'
+
+# Asset Maintenance Records
+class AssetMaintenance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('fixed_asset.id'), nullable=False)
+    asset = db.relationship('FixedAsset', back_populates='maintenance_records')
+    maintenance_type_id = db.Column(db.Integer, db.ForeignKey('maintenance_type.id'), nullable=False)
+    maintenance_type = db.relationship('MaintenanceType')
+    date = db.Column(db.Date, nullable=False)
+    cost = db.Column(db.Numeric(14, 2), nullable=False)
+    provider = db.Column(db.String(100))
+    description = db.Column(db.Text, nullable=False)
+    maintenance_notes = db.Column(db.Text)
+    next_maintenance_date = db.Column(db.Date)
+    expense_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    expense_account = db.relationship('Account')
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetMaintenance {self.asset.name} - {self.date}>'
+
+# Asset Disposal Records
+class AssetDisposal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('fixed_asset.id'), nullable=False)
+    asset = db.relationship('FixedAsset')
+    disposal_date = db.Column(db.Date, nullable=False)
+    disposal_type = db.Column(db.String(50), nullable=False)  # Sold, Scrapped, Donated, etc.
+    disposal_amount = db.Column(db.Numeric(14, 2), default=0)  # Sale amount if sold
+    buyer_id = db.Column(db.Integer, db.ForeignKey('entity.id'))
+    buyer = db.relationship('Entity')
+    book_value_at_disposal = db.Column(db.Numeric(14, 2), nullable=False)
+    gain_loss_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    reason = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    journal_entry = db.relationship('JournalEntry')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetDisposal {self.asset.name} - {self.disposal_date}>'
+
+# Asset Transfer Records
+class AssetTransfer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('fixed_asset.id'), nullable=False)
+    asset = db.relationship('FixedAsset')
+    transfer_date = db.Column(db.Date, nullable=False)
+    from_location_id = db.Column(db.Integer, db.ForeignKey('asset_location.id'), nullable=False)
+    from_location = db.relationship('AssetLocation', foreign_keys=[from_location_id])
+    to_location_id = db.Column(db.Integer, db.ForeignKey('asset_location.id'), nullable=False)
+    to_location = db.relationship('AssetLocation', foreign_keys=[to_location_id])
+    reason = db.Column(db.Text)
+    transfer_notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetTransfer {self.asset.name} - {self.transfer_date}>'
+
+# Asset Document/Attachment Records
+class AssetDocument(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('fixed_asset.id'), nullable=False)
+    asset = db.relationship('FixedAsset')
+    document_type = db.Column(db.String(50), nullable=False)  # Invoice, Warranty, Manual, etc.
+    file_name = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(255), nullable=False)
+    file_size = db.Column(db.Integer)  # In bytes
+    upload_date = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    description = db.Column(db.String(255))
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<AssetDocument {self.asset.name} - {self.document_type}>'
 
 # Warehouse Locations
 class Warehouse(db.Model):
