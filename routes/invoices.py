@@ -149,7 +149,7 @@ def view(invoice_id):
     """View an invoice"""
     invoice = Invoice.query.get_or_404(invoice_id)
     
-    return render_template('invoice_view.html', invoice=invoice)
+    return render_template('invoice_view.html', invoice=invoice, now=datetime.now())
 
 @invoices_bp.route('/invoices/<int:invoice_id>/edit', methods=['GET', 'POST'])
 @login_required
