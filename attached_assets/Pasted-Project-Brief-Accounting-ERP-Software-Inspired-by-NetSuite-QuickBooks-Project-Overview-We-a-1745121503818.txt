@@ -1,0 +1,182 @@
+Project Brief: Accounting ERP Software (Inspired by NetSuite & QuickBooks)
+🧾 Project Overview:
+We are building a full-featured accounting software similar in design and functionality to NetSuite, with the user-friendliness of QuickBooks Online. This will be a web-based ERP platform with modular architecture, covering core financials, inventory, sales, reporting, and planning.
+
+🧱 Core Modules & Features
+1. 📊 Dashboard
+Real-time financial overview
+
+Income vs Expenses, Cash Flow, Bank Balances
+
+Charts for top customers, sales trends, overdue invoices
+
+Alerts for tasks, low inventory, pending approvals
+
+2. 📚 Chart of Accounts
+Manage assets, liabilities, equity, income, expenses
+
+Grouping by account type
+
+Sub-account hierarchy support
+
+Account codes and descriptions
+
+3. 📓 General Ledger / Journal Entries
+Manual journal entry creation
+
+Multi-currency support
+
+Double-entry accounting system
+
+Attach supporting files (e.g., receipts)
+
+4. 🏦 Bank Reconciliation
+Import bank statements (CSV, API)
+
+Match transactions manually or automatically
+
+Flag discrepancies
+
+Reconciliation summary reports
+
+5. 🏗 Fixed Assets
+Asset registration and categorization
+
+Depreciation methods (straight-line, declining, etc.)
+
+Asset revaluation/disposal
+
+Depreciation schedules and reports
+
+6. 📦 Inventory Management
+Product catalog with SKUs, prices, cost methods
+
+Real-time stock levels
+
+Purchase orders and receiving
+
+Stock adjustments, warehouse tracking
+
+Inventory valuation reports
+
+7. 💼 Budgeting & Financial Planning
+Annual/monthly budget creation
+
+Forecasting and projections
+
+Compare actual vs budgeted reports
+
+Scenario simulation tools
+
+8. 🧾 Invoicing & Billing
+Create and send invoices to customers
+
+Recurring invoices and payment reminders
+
+Credit notes and discounts
+
+Attachments and email templates
+
+9. 📥 Expenses & Receipts
+Track employee/vendor expenses
+
+Upload receipts and categorize
+
+Approval workflows
+
+10. 📄 Purchase Orders & Vendor Management
+Vendor directory
+
+Create and manage purchase orders
+
+Link purchases to inventory and accounts
+
+Track delivery and payments
+
+11. 📈 Reports
+Profit and Loss (P&L)
+
+Balance Sheet
+
+Cash Flow Statement
+
+Trial Balance
+
+Budget vs Actual
+
+Custom financial reports (by customer, project, department)
+
+👤 CRM-Lite Features
+Customer and vendor profiles
+
+Payment history, communication logs
+
+Sales and purchase activity tracking
+
+💻 Technical Requirements
+🔧 Backend
+Language: Python
+
+Framework: Django or FastAPI
+
+RESTful API (JSON)
+
+Background tasks via Celery + Redis
+
+🎨 Frontend
+Framework: React.js
+
+UI: Tailwind CSS or ShadCN UI
+
+Charting: Recharts or Plotly
+
+🗃 Database
+PostgreSQL (preferred for financial data)
+
+Relational schema, supports transactions
+
+🔐 Auth & Permissions
+JWT or OAuth2 authentication
+
+Role-based access (Admin, Accountant, Viewer, etc.)
+
+📊 Reporting
+Use Pandas for data processing
+
+Export to PDF, Excel
+
+Email scheduling for reports
+
+☁ Hosting / Deployment
+Host on Render, Heroku, DigitalOcean, or AWS
+
+SSL, HTTPS, daily backups, uptime monitoring
+
+📈 Future Add-Ons (Phase 2+)
+Payroll
+
+Multi-currency accounting
+
+Time tracking & billable hours
+
+Mobile app version (Flutter or React Native)
+
+AI assistant for reconciliation or data insights
+
+Open API for third-party integrations
+
+✅ MVP Launch Plan
+Phase 1 Features (MVP):
+
+Dashboard
+
+Chart of Accounts
+
+Journal Entries
+
+Invoicing
+
+Customer & Vendor profiles
+
+Profit & Loss Report
+
