@@ -1,0 +1,206 @@
+{% extends "layout.html" %}
+
+{% block title %}Adjust Inventory: {{ product.name }}{% endblock %}
+{% block page_title %}Adjust Inventory: {{ product.name }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.view_product', product_id=product.id) }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Product
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inventory Adjustment Form</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="adjustmentForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Product Information</h6>
+                            <p><strong>SKU:</strong> {{ product.sku }}</p>
+                            <p><strong>Current Stock:</strong> {{ current_stock }} {{ product.uom.abbreviation }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="mb-3">Adjustment Details</h6>
+                            <div class="mb-3">
+                                <label for="adjustment_type" class="form-label">Adjustment Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="adjustment_type" name="adjustment_type" required>
+                                    <option value="">-- Select Type --</option>
+                                    <option value="increase">Increase Stock</option>
+                                    <option value="decrease">Decrease Stock</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantity <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" id="quantity" name="quantity" min="0.01" step="0.01" required>
+                            <span class="input-group-text">{{ product.uom.abbreviation }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="reason" name="reason" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <select class="form-select" id="location" name="location">
+                            <option value="">-- Select Location --</option>
+                            {% for warehouse in warehouses %}
+                            <option value="{{ warehouse.name }}">{{ warehouse.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div id="unitPriceSection" class="mb-4 d-none">
+                        <label for="unit_price" class="form-label">Unit Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="unit_price" name="unit_price" min="0" step="0.01" value="{{ product.cost_price }}">
+                        </div>
+                        <div class="form-text">
+                            Price information is used for accounting entries. For increases, this is the value of goods being added to inventory.
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="adjustment_summary">Please select an adjustment type and enter a quantity.</span>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <a href="{{ url_for('inventory.view_product', product_id=product.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Adjustment</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Adjustment Guidelines</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="text-success">When to Increase Stock:</h6>
+                <ul>
+                    <li>Initial inventory setup</li>
+                    <li>Stock count reveals more items than system shows</li>
+                    <li>Return of items previously sold</li>
+                    <li>Items received without a purchase order</li>
+                </ul>
+                
+                <h6 class="text-danger mt-3">When to Decrease Stock:</h6>
+                <ul>
+                    <li>Stock count reveals fewer items than system shows</li>
+                    <li>Items damaged or expired</li>
+                    <li>Items used for samples or internal use</li>
+                    <li>Items sold without proper invoice</li>
+                </ul>
+                
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Important:</strong> Inventory adjustments affect your financial statements. Make sure to provide accurate information and a clear reason for the adjustment.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('adjustmentForm');
+        const adjustmentType = document.getElementById('adjustment_type');
+        const quantity = document.getElementById('quantity');
+        const unitPriceSection = document.getElementById('unitPriceSection');
+        const adjustmentSummary = document.getElementById('adjustment_summary');
+        const currentStock = {{ current_stock }};
+        const uomAbbr = "{{ product.uom.abbreviation }}";
+        
+        // Show/hide unit price based on adjustment type
+        adjustmentType.addEventListener('change', function() {
+            if (this.value === 'increase') {
+                unitPriceSection.classList.remove('d-none');
+            } else {
+                unitPriceSection.classList.remove('d-none');
+            }
+            updateSummary();
+        });
+        
+        // Update summary when quantity changes
+        quantity.addEventListener('input', updateSummary);
+        
+        function updateSummary() {
+            const type = adjustmentType.value;
+            const qty = parseFloat(quantity.value) || 0;
+            
+            if (!type || qty <= 0) {
+                adjustmentSummary.textContent = "Please select an adjustment type and enter a quantity.";
+                return;
+            }
+            
+            if (type === 'increase') {
+                const newStock = currentStock + qty;
+                adjustmentSummary.textContent = `Stock will increase from ${currentStock} to ${newStock} ${uomAbbr}`;
+            } else if (type === 'decrease') {
+                const newStock = Math.max(0, currentStock - qty);
+                adjustmentSummary.textContent = `Stock will decrease from ${currentStock} to ${newStock} ${uomAbbr}`;
+                
+                if (qty > currentStock) {
+                    adjustmentSummary.textContent += ". Warning: This will result in negative stock!";
+                }
+            }
+        }
+        
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Validate adjustment type
+            if (!adjustmentType.value) {
+                adjustmentType.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                adjustmentType.classList.remove('is-invalid');
+            }
+            
+            // Validate quantity
+            const qty = parseFloat(quantity.value) || 0;
+            if (qty <= 0) {
+                quantity.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                quantity.classList.remove('is-invalid');
+            }
+            
+            // Validate reason
+            const reason = document.getElementById('reason');
+            if (!reason.value.trim()) {
+                reason.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                reason.classList.remove('is-invalid');
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please complete all required fields.');
+            }
+        });
+    });
+</script>
+{% endblock %}

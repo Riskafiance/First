@@ -1,0 +1,105 @@
+{% extends "layout.html" %}
+
+{% block title %}Units of Measure{% endblock %}
+{% block page_title %}Units of Measure{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+    </a>
+    <a href="{{ url_for('inventory.create_uom') }}" class="btn btn-primary ms-2">
+        <i class="fas fa-plus me-1"></i> New Unit of Measure
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Abbreviation</th>
+                        <th>Products</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for uom in uoms %}
+                    <tr>
+                        <td>{{ uom.name }}</td>
+                        <td>{{ uom.abbreviation }}</td>
+                        <td>
+                            {% set product_count = uom.products|length if uom.products is defined else 0 %}
+                            <span class="badge bg-info">{{ product_count }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('inventory.edit_uom', uom_id=uom.id) }}" class="btn btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteModal" 
+                                        data-uom-id="{{ uom.id }}" 
+                                        data-uom-name="{{ uom.name }}"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center">No units of measure found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Delete Unit of Measure</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the unit of measure <span id="uomName" class="fw-bold"></span>?</p>
+                <p class="text-danger">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const deleteModal = document.getElementById('deleteModal');
+        
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const uomId = button.getAttribute('data-uom-id');
+            const uomName = button.getAttribute('data-uom-name');
+            
+            document.getElementById('uomName').textContent = uomName;
+            document.getElementById('deleteForm').action = "{{ url_for('inventory.delete_uom', uom_id=0) }}".replace('0', uomId);
+        });
+    });
+</script>
+{% endblock %}

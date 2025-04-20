@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if uom %}Edit{% else %}Create{% endif %} Unit of Measure{% endblock %}
+{% block page_title %}{% if uom %}Edit{% else %}Create{% endif %} Unit of Measure{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.uoms') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Units of Measure
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="uomForm">
+            <div class="mb-3">
+                <label for="name" class="form-label">Unit Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ uom.name if uom else '' }}" required>
+                <div class="form-text">Full name of the unit (e.g., Each, Kilogram, Liter)</div>
+            </div>
+            
+            <div class="mb-4">
+                <label for="abbreviation" class="form-label">Abbreviation <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="abbreviation" name="abbreviation" value="{{ uom.abbreviation if uom else '' }}" required>
+                <div class="form-text">Short form of the unit (e.g., ea, kg, L)</div>
+            </div>
+            
+            <div class="d-flex justify-content-end">
+                <a href="{{ url_for('inventory.uoms') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-primary">Save Unit of Measure</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('uomForm');
+        
+        form.addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Validate required fields
+            const nameInput = document.getElementById('name');
+            const abbreviationInput = document.getElementById('abbreviation');
+            
+            if (!nameInput.value.trim()) {
+                nameInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                nameInput.classList.remove('is-invalid');
+                nameInput.classList.add('is-valid');
+            }
+            
+            if (!abbreviationInput.value.trim()) {
+                abbreviationInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                abbreviationInput.classList.remove('is-invalid');
+                abbreviationInput.classList.add('is-valid');
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+            }
+        });
+    });
+</script>
+{% endblock %}
