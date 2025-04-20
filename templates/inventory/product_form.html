@@ -12,91 +12,134 @@
 {% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-body">
-        <form method="post" id="productForm">
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Product Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
-                    </div>
+<form method="post" id="productForm">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Product Information</h5>
                 </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="sku" name="sku" value="{{ product.sku if product else new_sku }}" required>
-                        <div class="form-text">Unique identifier for this product</div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="sku" class="form-label">SKU <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="sku" name="sku" value="{{ product.sku if product else '' }}" {% if not product %}placeholder="Auto-generated if empty"{% else %}readonly{% endif %}>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
+                        </div>
                     </div>
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
-            </div>
-            
-            <div class="row mb-3">
-                <div class="col-md-6">
+                    
                     <div class="mb-3">
-                        <label for="category_id" class="form-label">Category</label>
-                        <select class="form-select" id="category_id" name="category_id">
-                            <option value="">-- Select Category --</option>
-                            {% for category in categories %}
-                            <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
-                                {{ category.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ product.description if product else '' }}</textarea>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="uom_id" class="form-label">Unit of Measure <span class="text-danger">*</span></label>
-                        <select class="form-select" id="uom_id" name="uom_id" required>
-                            <option value="">-- Select UOM --</option>
-                            {% for uom in uoms %}
-                            <option value="{{ uom.id }}" {% if product and product.uom_id == uom.id %}selected{% endif %}>
-                                {{ uom.name }} ({{ uom.abbreviation }})
-                            </option>
-                            {% endfor %}
-                        </select>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="category_id" class="form-label">Category</label>
+                            <select class="form-select" id="category_id" name="category_id">
+                                <option value="">-- Select Category --</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}" {% if product and product.category_id == category.id %}selected{% endif %}>
+                                    {{ category.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="uom_id" class="form-label">Unit of Measure <span class="text-danger">*</span></label>
+                            <select class="form-select" id="uom_id" name="uom_id" required>
+                                <option value="">-- Select UOM --</option>
+                                {% for uom in uoms %}
+                                <option value="{{ uom.id }}" {% if product and product.uom_id == uom.id %}selected{% endif %}>
+                                    {{ uom.name }} ({{ uom.abbreviation }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
-                </div>
-            </div>
-            
-            <div class="row mb-4">
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="cost_price" class="form-label">Cost Price</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="cost_price" name="cost_price" value="{{ product.cost_price if product else '0.00' }}" min="0" step="0.01">
+                    
+                    <h6 class="mb-3">Pricing Information</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="cost_price" class="form-label">Cost Price <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="cost_price" name="cost_price" value="{{ product.cost_price if product else '0.00' }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="sales_price" class="form-label">Sales Price <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" step="0.01" min="0" class="form-control" id="sales_price" name="sales_price" value="{{ product.sales_price if product else '0.00' }}" required>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="sales_price" class="form-label">Sales Price</label>
-                        <div class="input-group">
-                            <span class="input-group-text">$</span>
-                            <input type="number" class="form-control" id="sales_price" name="sales_price" value="{{ product.sales_price if product else '0.00' }}" min="0" step="0.01">
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Accounting Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="asset_account_id" class="form-label">Asset Account</label>
+                            <select class="form-select" id="asset_account_id" name="asset_account_id">
+                                <option value="">-- Select Account --</option>
+                                {% for account in asset_accounts %}
+                                <option value="{{ account.id }}" {% if product and product.asset_account_id == account.id %}selected{% endif %}>
+                                    {{ account.code }} - {{ account.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Account used for inventory assets</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="expense_account_id" class="form-label">Expense Account</label>
+                            <select class="form-select" id="expense_account_id" name="expense_account_id">
+                                <option value="">-- Select Account --</option>
+                                {% for account in expense_accounts %}
+                                <option value="{{ account.id }}" {% if product and product.expense_account_id == account.id %}selected{% endif %}>
+                                    {{ account.code }} - {{ account.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Account for cost of goods sold</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="revenue_account_id" class="form-label">Revenue Account</label>
+                            <select class="form-select" id="revenue_account_id" name="revenue_account_id">
+                                <option value="">-- Select Account --</option>
+                                {% for account in revenue_accounts %}
+                                <option value="{{ account.id }}" {% if product and product.revenue_account_id == account.id %}selected{% endif %}>
+                                    {{ account.code }} - {{ account.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Account for sales revenue</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Inventory Settings</h5>
+                </div>
+                <div class="card-body">
                     <div class="mb-3">
                         <label for="reorder_level" class="form-label">Reorder Level</label>
-                        <input type="number" class="form-control" id="reorder_level" name="reorder_level" value="{{ product.reorder_level if product else '0' }}" min="0" step="0.01">
+                        <input type="number" step="0.01" min="0" class="form-control" id="reorder_level" name="reorder_level" value="{{ product.reorder_level if product else '0' }}">
                         <div class="form-text">Minimum stock level before reordering</div>
                     </div>
-                </div>
-            </div>
-            
-            <h5 class="mb-3 border-bottom pb-2">Purchasing & Accounting</h5>
-            
-            <div class="row mb-3">
-                <div class="col-md-6">
+                    
                     <div class="mb-3">
                         <label for="preferred_vendor_id" class="form-label">Preferred Vendor</label>
                         <select class="form-select" id="preferred_vendor_id" name="preferred_vendor_id">
@@ -108,69 +151,52 @@
                             {% endfor %}
                         </select>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="asset_account_id" class="form-label">Inventory Asset Account</label>
-                        <select class="form-select" id="asset_account_id" name="asset_account_id">
-                            <option value="">-- Select Account --</option>
-                            {% for account in asset_accounts %}
-                            <option value="{{ account.id }}" {% if product and product.asset_account_id == account.id %}selected{% endif %}>
-                                {{ account.code }} - {{ account.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                    
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if not product or product.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">Active</label>
                     </div>
+                    
+                    {% if product %}
+                    <div class="alert alert-info">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-info-circle fa-lg mt-1"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="alert-heading mb-1">Current Inventory</h6>
+                                <p class="mb-0">Current Stock: <strong>{{ product.current_stock }} {{ product.uom.abbreviation }}</strong></p>
+                                <p class="mb-0">Stock Value: <strong>${{ '{:.2f}'.format(product.current_stock * product.cost_price) }}</strong></p>
+                                <div class="mt-2">
+                                    <a href="{{ url_for('inventory.adjust_inventory', product_id=product.id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-boxes me-1"></i> Adjust Inventory
+                                    </a>
+                                    <a href="{{ url_for('inventory.product_transactions', product_id=product.id) }}" class="btn btn-sm btn-outline-secondary ms-1">
+                                        <i class="fas fa-history me-1"></i> View History
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="expense_account_id" class="form-label">COGS Expense Account</label>
-                        <select class="form-select" id="expense_account_id" name="expense_account_id">
-                            <option value="">-- Select Account --</option>
-                            {% for account in expense_accounts %}
-                            <option value="{{ account.id }}" {% if product and product.expense_account_id == account.id %}selected{% endif %}>
-                                {{ account.code }} - {{ account.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="revenue_account_id" class="form-label">Revenue Account</label>
-                        <select class="form-select" id="revenue_account_id" name="revenue_account_id">
-                            <option value="">-- Select Account --</option>
-                            {% for account in revenue_accounts %}
-                            <option value="{{ account.id }}" {% if product and product.revenue_account_id == account.id %}selected{% endif %}>
-                                {{ account.code }} - {{ account.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save Product
+                        </button>
+                        <a href="{{ url_for('inventory.products') }}" class="btn btn-outline-secondary">
+                            Cancel
+                        </a>
                     </div>
                 </div>
             </div>
-            
-            {% if product %}
-            <div class="mb-4">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="1" id="is_active" name="is_active" {% if product.is_active %}checked{% endif %}>
-                    <label class="form-check-label" for="is_active">
-                        Active
-                    </label>
-                </div>
-            </div>
-            {% endif %}
-            
-            <div class="d-flex justify-content-end">
-                <a href="{{ url_for('inventory.products') }}" class="btn btn-outline-secondary me-2">Cancel</a>
-                <button type="submit" class="btn btn-primary">Save Product</button>
-            </div>
-        </form>
+        </div>
     </div>
-</div>
+</form>
 {% endblock %}
 
 {% block scripts %}
@@ -183,21 +209,34 @@
             let isValid = true;
             
             // Validate required fields
-            const requiredFields = ['name', 'sku', 'uom_id'];
-            requiredFields.forEach(field => {
+            const requiredFields = ['name', 'uom_id', 'cost_price', 'sales_price'];
+            
+            requiredFields.forEach(function(field) {
                 const input = document.getElementById(field);
                 if (!input.value.trim()) {
                     input.classList.add('is-invalid');
                     isValid = false;
                 } else {
                     input.classList.remove('is-invalid');
-                    input.classList.add('is-valid');
+                }
+            });
+            
+            // Validate numeric fields
+            const numericFields = ['cost_price', 'sales_price', 'reorder_level'];
+            
+            numericFields.forEach(function(field) {
+                const input = document.getElementById(field);
+                const value = parseFloat(input.value);
+                
+                if (isNaN(value) || value < 0) {
+                    input.classList.add('is-invalid');
+                    isValid = false;
                 }
             });
             
             if (!isValid) {
                 e.preventDefault();
-                alert('Please fill in all required fields.');
+                alert('Please correct the errors in the form before submitting.');
             }
         });
     });

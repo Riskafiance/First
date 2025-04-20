@@ -1,0 +1,330 @@
+{% extends "layout.html" %}
+
+{% block title %}Transaction History: {{ product.name }}{% endblock %}
+{% block page_title %}Transaction History: {{ product.name }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.view_product', product_id=product.id) }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Product
+    </a>
+    <a href="{{ url_for('inventory.adjust_inventory', product_id=product.id) }}" class="btn btn-primary ms-2">
+        <i class="fas fa-boxes me-1"></i> Adjust Inventory
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-transparent">
+        <form method="get" class="row g-2">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date.strftime('%Y-%m-%d') }}">
+            </div>
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date.strftime('%Y-%m-%d') }}">
+            </div>
+            <div class="col-md-3">
+                <label for="transaction_type" class="form-label">Transaction Type</label>
+                <select class="form-select" id="transaction_type" name="transaction_type">
+                    <option value="">All Types</option>
+                    <option value="IN" {% if transaction_type == 'IN' %}selected{% endif %}>IN</option>
+                    <option value="OUT" {% if transaction_type == 'OUT' %}selected{% endif %}>OUT</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Product Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-box fa-2x text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h5 class="mb-0">{{ product.name }}</h5>
+                        <p class="mb-0 text-muted">SKU: {{ product.sku }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">Current Stock</h6>
+                            <h4 class="mb-0">
+                                {% set stock = product.current_stock %}
+                                {% if stock <= 0 %}
+                                <span class="text-danger">{{ stock }}</span>
+                                {% elif stock < product.reorder_level %}
+                                <span class="text-warning">{{ stock }}</span>
+                                {% else %}
+                                <span>{{ stock }}</span>
+                                {% endif %}
+                                <small>{{ product.uom.abbreviation }}</small>
+                            </h4>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">Stock Value</h6>
+                            <h4 class="mb-0">${{ '{:.2f}'.format(product.current_stock * product.cost_price) }}</h4>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">Category</h6>
+                            <p class="mb-0">{{ product.category.name if product.category else 'Uncategorized' }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted mb-1">Reorder Level</h6>
+                            <p class="mb-0">{{ product.reorder_level }} {{ product.uom.abbreviation }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inventory Movement</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- IN Transactions Summary -->
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
+                                <i class="fas fa-arrow-circle-down fa-2x text-success"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total IN</h6>
+                                {% set total_in = transactions|selectattr('transaction_type', 'equalto', 'IN')|sum(attribute='quantity')|float %}
+                                <h4 class="mb-0">{{ total_in }} {{ product.uom.abbreviation }}</h4>
+                            </div>
+                        </div>
+                        
+                        <!-- In by transaction type -->
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-muted mb-2">IN by Type</h6>
+                            {% set in_types = {} %}
+                            {% for tx in transactions if tx.transaction_type == 'IN' %}
+                                {% set tx_type = tx.transaction_type_obj.name if tx.transaction_type_obj else 'Other' %}
+                                {% if tx_type in in_types %}
+                                    {% set _ = in_types.update({tx_type: in_types[tx_type] + tx.quantity|float}) %}
+                                {% else %}
+                                    {% set _ = in_types.update({tx_type: tx.quantity|float}) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for type, qty in in_types.items() %}
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>{{ type }}</span>
+                                <span>{{ qty }} {{ product.uom.abbreviation }}</span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No incoming transactions in this period</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <!-- OUT Transactions Summary -->
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-shrink-0 bg-danger bg-opacity-10 p-3 rounded">
+                                <i class="fas fa-arrow-circle-up fa-2x text-danger"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="text-muted mb-1">Total OUT</h6>
+                                {% set total_out = transactions|selectattr('transaction_type', 'equalto', 'OUT')|sum(attribute='quantity')|float %}
+                                <h4 class="mb-0">{{ total_out }} {{ product.uom.abbreviation }}</h4>
+                            </div>
+                        </div>
+                        
+                        <!-- Out by transaction type -->
+                        <div class="mb-3">
+                            <h6 class="fw-bold text-muted mb-2">OUT by Type</h6>
+                            {% set out_types = {} %}
+                            {% for tx in transactions if tx.transaction_type == 'OUT' %}
+                                {% set tx_type = tx.transaction_type_obj.name if tx.transaction_type_obj else 'Other' %}
+                                {% if tx_type in out_types %}
+                                    {% set _ = out_types.update({tx_type: out_types[tx_type] + tx.quantity|float}) %}
+                                {% else %}
+                                    {% set _ = out_types.update({tx_type: tx.quantity|float}) %}
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% for type, qty in out_types.items() %}
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>{{ type }}</span>
+                                <span>{{ qty }} {{ product.uom.abbreviation }}</span>
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No outgoing transactions in this period</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6 class="fw-bold text-muted mb-2">Net Movement</h6>
+                    {% set net_movement = total_in - total_out %}
+                    <div class="d-flex align-items-center">
+                        {% if net_movement > 0 %}
+                        <div class="badge bg-success me-2">+{{ net_movement }} {{ product.uom.abbreviation }}</div>
+                        <span>Inventory increased during this period</span>
+                        {% elif net_movement < 0 %}
+                        <div class="badge bg-danger me-2">{{ net_movement }} {{ product.uom.abbreviation }}</div>
+                        <span>Inventory decreased during this period</span>
+                        {% else %}
+                        <div class="badge bg-secondary me-2">0 {{ product.uom.abbreviation }}</div>
+                        <span>No net change in inventory during this period</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Transaction History</h5>
+        <div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+                <i class="fas fa-print me-1"></i> Print
+            </button>
+            <a href="{{ url_for('inventory.product_transactions', product_id=product.id, export='csv') }}" class="btn btn-sm btn-outline-primary ms-2">
+                <i class="fas fa-download me-1"></i> Export CSV
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Running Total</th>
+                        <th class="text-end">Unit Price</th>
+                        <th>Reference</th>
+                        <th>Location</th>
+                        <th>Notes</th>
+                        <th>User</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set running_total = 0 %}
+                    {% for tx in transactions %}
+                    {% if tx.transaction_type == 'IN' %}
+                        {% set running_total = running_total + tx.quantity|float %}
+                    {% else %}
+                        {% set running_total = running_total - tx.quantity|float %}
+                    {% endif %}
+                    <tr>
+                        <td>{{ tx.transaction_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if tx.transaction_type == 'IN' %}
+                            <span class="badge bg-success">IN</span>
+                            {% else %}
+                            <span class="badge bg-danger">OUT</span>
+                            {% endif %}
+                            {% if tx.transaction_type_obj %}
+                            <small class="text-muted">{{ tx.transaction_type_obj.name }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if tx.transaction_type == 'IN' %}
+                            <span class="text-success">+{{ tx.quantity }}</span>
+                            {% else %}
+                            <span class="text-danger">-{{ tx.quantity }}</span>
+                            {% endif %}
+                            {{ product.uom.abbreviation }}
+                        </td>
+                        <td class="text-end">
+                            {{ running_total }} {{ product.uom.abbreviation }}
+                        </td>
+                        <td class="text-end">
+                            {% if tx.unit_price %}
+                            ${{ '{:.2f}'.format(tx.unit_price) }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tx.reference_type %}
+                            {{ tx.reference_type }}
+                            {% if tx.reference_id %}
+                            #{{ tx.reference_id }}
+                            {% endif %}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ tx.location or '-' }}</td>
+                        <td>
+                            {% if tx.notes %}
+                            <span class="text-truncate d-inline-block" style="max-width: 150px;">{{ tx.notes }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if tx.created_by %}
+                            {{ tx.created_by.username }}
+                            {% else %}
+                            System
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center">No transactions found for the selected period</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    @media print {
+        .sidebar, .btn-toolbar, .card-header button, .card-header a, .footer {
+            display: none !important;
+        }
+        .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+
+{% block title %}Low Stock Report{% endblock %}
+{% block page_title %}Low Stock Report{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+    </a>
+    <a href="{{ url_for('inventory.products') }}" class="btn btn-outline-secondary ms-2">
+        <i class="fas fa-box me-1"></i> All Products
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Products Below Reorder Level</h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+            <i class="fas fa-print me-1"></i> Print Report
+        </button>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th class="text-end">Current Stock</th>
+                        <th class="text-end">Reorder Level</th>
+                        <th>Vendor</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock %}
+                    <tr>
+                        <td>{{ item.sku }}</td>
+                        <td>{{ item.name }}</td>
+                        <td>{{ item.category }}</td>
+                        <td class="text-end text-danger">{{ item.current_stock }} {{ item.uom }}</td>
+                        <td class="text-end">{{ item.reorder_level }} {{ item.uom }}</td>
+                        <td>{{ item.preferred_vendor or 'Not set' }}</td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('inventory.view_product', product_id=item.id) }}" class="btn btn-outline-secondary" title="View Product">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('inventory.adjust_inventory', product_id=item.id) }}" class="btn btn-outline-info" title="Adjust Inventory">
+                                    <i class="fas fa-boxes"></i>
+                                </a>
+                                <a href="{{ url_for('inventory.create_purchase_order') }}?product_id={{ item.id }}" class="btn btn-outline-success" title="Create Purchase Order">
+                                    <i class="fas fa-shopping-cart"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <i class="fas fa-check-circle text-success fs-4 mb-2"></i>
+                            <p class="mb-0">No products below reorder level. Your inventory is in good shape!</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Inventory Management Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2">Set appropriate reorder levels based on lead time and usage rate.</li>
+                    <li class="mb-2">Review this report regularly to avoid stockouts.</li>
+                    <li class="mb-2">Consider setting up automatic purchase orders for frequently depleted items.</li>
+                    <li class="mb-2">Analyze slow-moving inventory to optimize stock levels.</li>
+                    <li>Communicate with vendors to ensure timely replenishment.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-shopping-cart me-1"></i> Manage Purchase Orders
+                    </a>
+                    <a href="{{ url_for('inventory.stock_valuation_report') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-chart-line me-1"></i> View Stock Valuation Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    @media print {
+        .sidebar, .btn-toolbar, .card-header button, .actions, .footer {
+            display: none !important;
+        }
+        .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+    }
+</style>
+{% endblock %}
