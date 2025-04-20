@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riska's Finance Enterprise - {% block title %}Accounting ERP{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-2 d-none d-md-block sidebar">
+                <div class="text-center mb-4">
+                    <h4>Riska's Finance</h4>
+                    <p class="text-muted">Enterprise ERP</p>
+                </div>
+                
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}" href="{{ url_for('dashboard.index') }}">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'accounts.index' %}active{% endif %}" href="{{ url_for('accounts.index') }}">
+                            <i class="fas fa-book"></i>
+                            <span>Chart of Accounts</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'journals.index' %}active{% endif %}" href="{{ url_for('journals.index') }}">
+                            <i class="fas fa-pen-to-square"></i>
+                            <span>Journal Entries</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'invoices.index' %}active{% endif %}" href="{{ url_for('invoices.index') }}">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <span>Invoicing</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'entities.customers' %}active{% endif %}" href="{{ url_for('entities.customers') }}">
+                            <i class="fas fa-users"></i>
+                            <span>Customers</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'entities.vendors' %}active{% endif %}" href="{{ url_for('entities.vendors') }}">
+                            <i class="fas fa-truck"></i>
+                            <span>Vendors</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'reports.index' %}active{% endif %}" href="{{ url_for('reports.index') }}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                    <li class="nav-item mt-4">
+                        <a class="nav-link {% if request.endpoint == 'auth.profile' %}active{% endif %}" href="{{ url_for('auth.profile') }}">
+                            <i class="fas fa-user-circle"></i>
+                            <span>Profile</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Main content -->
+            <div class="col-md-10 ms-sm-auto main-content">
+                <div class="container-fluid mt-3">
+                    <!-- Page header -->
+                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                        <h1 class="h2">{% block page_title %}Dashboard{% endblock %}</h1>
+                        <div class="btn-toolbar mb-2 mb-md-0">
+                            {% block page_actions %}{% endblock %}
+                        </div>
+                    </div>
+                    
+                    <!-- Flash messages -->
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    
+                    <!-- Error display -->
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            {{ error }}
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Main content block -->
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Auth pages (login/register) -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="text-center mb-4">
+                    <h2>Riska's Finance Enterprise</h2>
+                    <p class="text-muted">Accounting ERP Software</p>
+                </div>
+                
+                <!-- Flash messages -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                
+                <!-- Error display -->
+                {% if error %}
+                    <div class="alert alert-danger">
+                        {{ error }}
+                    </div>
+                {% endif %}
+                
+                <!-- Auth content block -->
+                {% block auth_content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Page-specific scripts -->
+    {% block scripts %}{% endblock %}
+</body>
+</html>

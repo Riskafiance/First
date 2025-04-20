@@ -1,0 +1,205 @@
+{% extends "layout.html" %}
+
+{% block title %}Invoices{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('invoices.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> New Invoice
+    </a>
+    
+    <div class="dropdown ms-2">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="invoiceFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-filter me-1"></i> Filter
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="invoiceFilterDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('invoices.index') }}">All Invoices</a></li>
+            <li><hr class="dropdown-divider"></li>
+            {% for status in statuses %}
+            <li><a class="dropdown-item" href="{{ url_for('invoices.index', status=status.name) }}">{{ status.name }} Invoices</a></li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Date filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="startDate" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" 
+                       value="{{ request.args.get('start_date', '') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="endDate" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="endDate" name="end_date"
+                       value="{{ request.args.get('end_date', '') }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
+                <a href="{{ url_for('invoices.index') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Invoice listing -->
+<div class="card mb-4">
+    <div class="card-body">
+        {% if invoices %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Customer</th>
+                        <th>Issue Date</th>
+                        <th>Due Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr>
+                        <td><a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}">{{ invoice.invoice_number }}</a></td>
+                        <td>{{ invoice.entity.name }}</td>
+                        <td>{{ invoice.issue_date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ invoice.due_date.strftime('%b %d, %Y') }}</td>
+                        <td>${{ "{:,.2f}".format(invoice.total_amount) }}</td>
+                        <td>
+                            {% if invoice.status.name == 'Draft' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% elif invoice.status.name == 'Sent' %}
+                            <span class="badge bg-primary">Sent</span>
+                            {% elif invoice.status.name == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                            {% elif invoice.status.name == 'Overdue' %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% elif invoice.status.name == 'Cancelled' %}
+                            <span class="badge bg-dark">Cancelled</span>
+                            {% else %}
+                            <span class="badge bg-dark">{{ invoice.status.name }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if invoice.status.name == 'Draft' %}
+                                <a href="{{ url_for('invoices.edit', invoice_id=invoice.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#sendModal-{{ invoice.id }}" title="Send">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if invoice.status.name in ['Sent', 'Overdue'] %}
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#paymentModal-{{ invoice.id }}" title="Mark Paid">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if invoice.status.name != 'Paid' and invoice.status.name != 'Cancelled' %}
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal-{{ invoice.id }}" title="Cancel">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Send invoice modal -->
+                            <div class="modal fade" id="sendModal-{{ invoice.id }}" tabindex="-1" aria-labelledby="sendModalLabel-{{ invoice.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="sendModalLabel-{{ invoice.id }}">Send Invoice</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to mark this invoice as sent?</p>
+                                            <p>This will create the accounting entries for this invoice in the general ledger.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <form action="{{ url_for('invoices.send', invoice_id=invoice.id) }}" method="post">
+                                                <button type="submit" class="btn btn-success">Mark as Sent</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Payment modal -->
+                            <div class="modal fade" id="paymentModal-{{ invoice.id }}" tabindex="-1" aria-labelledby="paymentModalLabel-{{ invoice.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="paymentModalLabel-{{ invoice.id }}">Record Payment</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <form action="{{ url_for('invoices.mark_paid', invoice_id=invoice.id) }}" method="post">
+                                            <div class="modal-body">
+                                                <p>Record payment for invoice #{{ invoice.invoice_number }} for ${{ "{:,.2f}".format(invoice.total_amount) }}</p>
+                                                
+                                                <div class="mb-3">
+                                                    <label for="payment_date" class="form-label">Payment Date</label>
+                                                    <input type="date" class="form-control" id="payment_date" name="payment_date" value="{{ today }}" required>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-success">Record Payment</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Cancel invoice modal -->
+                            <div class="modal fade" id="cancelModal-{{ invoice.id }}" tabindex="-1" aria-labelledby="cancelModalLabel-{{ invoice.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="cancelModalLabel-{{ invoice.id }}">Cancel Invoice</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to cancel this invoice?</p>
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i> This will create a reversing entry in the accounting system if the invoice has been sent.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep Invoice</button>
+                                            <form action="{{ url_for('invoices.cancel', invoice_id=invoice.id) }}" method="post">
+                                                <button type="submit" class="btn btn-danger">Yes, Cancel Invoice</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No invoices found. Create your first invoice by clicking the "New Invoice" button.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/invoices.js') }}"></script>
+{% endblock %}

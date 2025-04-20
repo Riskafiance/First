@@ -1,0 +1,247 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    {% if viewing %}
+        View {{ entity.name }}
+    {% elif editing %}
+        Edit {{ entity_type | capitalize }}
+    {% else %}
+        Create {{ entity_type | capitalize }}
+    {% endif %}
+{% endblock %}
+
+{% block page_title %}
+    {% if viewing %}
+        {{ entity.name }}
+    {% elif editing %}
+        Edit {{ entity_type | capitalize }}
+    {% else %}
+        Create {{ entity_type | capitalize }}
+    {% endif %}
+{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    {% if entity_type == 'customer' %}
+        <a href="{{ url_for('entities.customers') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Customers
+        </a>
+    {% else %}
+        <a href="{{ url_for('entities.vendors') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Vendors
+        </a>
+    {% endif %}
+    
+    {% if viewing %}
+        <a href="{{ url_for('entities.edit', entity_id=entity.id) }}" class="btn btn-outline-primary ms-2">
+            <i class="fas fa-edit me-1"></i> Edit
+        </a>
+        
+        {% if entity_type == 'customer' %}
+        <a href="{{ url_for('invoices.create') }}?customer_id={{ entity.id }}" class="btn btn-outline-success ms-2">
+            <i class="fas fa-file-invoice-dollar me-1"></i> New Invoice
+        </a>
+        {% endif %}
+        
+        <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <i class="fas fa-trash me-1"></i> Delete
+        </button>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Entity information form or display -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">{{ entity_type | capitalize }} Information</h5>
+            </div>
+            <div class="card-body">
+                {% if viewing %}
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Name:</div>
+                        <div class="col-md-9">{{ entity.name }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Contact Person:</div>
+                        <div class="col-md-9">{{ entity.contact_name or 'N/A' }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Email:</div>
+                        <div class="col-md-9">{{ entity.email or 'N/A' }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Phone:</div>
+                        <div class="col-md-9">{{ entity.phone or 'N/A' }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Address:</div>
+                        <div class="col-md-9">{{ entity.address or 'N/A' }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Created On:</div>
+                        <div class="col-md-9">{{ entity.created_at.strftime('%b %d, %Y') }}</div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-3 fw-bold">Created By:</div>
+                        <div class="col-md-9">{{ entity.created_by.username }}</div>
+                    </div>
+                {% else %}
+                    <form action="{{ url_for('entities.edit', entity_id=entity.id) if editing else url_for('entities.create_customer' if entity_type == 'customer' else 'entities.create_vendor') }}" method="post">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ entity.name if entity else '' }}" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="contact_name" class="form-label">Contact Person</label>
+                            <input type="text" class="form-control" id="contact_name" name="contact_name" value="{{ entity.contact_name if entity else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ entity.email if entity else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="phone" name="phone" value="{{ entity.phone if entity else '' }}">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="3">{{ entity.address if entity else '' }}</textarea>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            {% if entity_type == 'customer' %}
+                                <a href="{{ url_for('entities.customers') }}" class="btn btn-outline-secondary">Cancel</a>
+                            {% else %}
+                                <a href="{{ url_for('entities.vendors') }}" class="btn btn-outline-secondary">Cancel</a>
+                            {% endif %}
+                            
+                            <button type="submit" class="btn btn-primary">{{ 'Update' if editing else 'Create' }}</button>
+                        </div>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent activity - only show when viewing -->
+    {% if viewing and entity_type == 'customer' %}
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title">Recent Invoices</h5>
+            </div>
+            <div class="card-body">
+                {% if recent_invoices %}
+                <div class="list-group">
+                    {% for invoice in recent_invoices %}
+                    <a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ invoice.invoice_number }}</h6>
+                            <small>${{ "{:,.2f}".format(invoice.total_amount) }}</small>
+                        </div>
+                        <p class="mb-1">{{ invoice.issue_date.strftime('%b %d, %Y') }}</p>
+                        <small>
+                            {% if invoice.status.name == 'Draft' %}
+                            <span class="badge bg-secondary">Draft</span>
+                            {% elif invoice.status.name == 'Sent' %}
+                            <span class="badge bg-primary">Sent</span>
+                            {% elif invoice.status.name == 'Paid' %}
+                            <span class="badge bg-success">Paid</span>
+                            {% elif invoice.status.name == 'Overdue' %}
+                            <span class="badge bg-danger">Overdue</span>
+                            {% else %}
+                            <span class="badge bg-dark">{{ invoice.status.name }}</span>
+                            {% endif %}
+                        </small>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-center text-muted">No recent invoices</p>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('invoices.create') }}?customer_id={{ entity.id }}" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-plus me-1"></i> Create Invoice
+                </a>
+            </div>
+        </div>
+        
+        <!-- Summary information -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-6 text-muted">Total Invoices:</div>
+                    <div class="col-6 text-end">{{ entity.invoices | length }}</div>
+                </div>
+                
+                {% set outstanding = namespace(value=0) %}
+                {% set paid = namespace(value=0) %}
+                {% for invoice in entity.invoices %}
+                    {% if invoice.status.name in ['Sent', 'Overdue'] %}
+                        {% set outstanding.value = outstanding.value + invoice.total_amount %}
+                    {% elif invoice.status.name == 'Paid' %}
+                        {% set paid.value = paid.value + invoice.total_amount %}
+                    {% endif %}
+                {% endfor %}
+                
+                <div class="row mb-2">
+                    <div class="col-6 text-muted">Outstanding:</div>
+                    <div class="col-6 text-end">${{ "{:,.2f}".format(outstanding.value) }}</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-6 text-muted">Paid (Total):</div>
+                    <div class="col-6 text-end">${{ "{:,.2f}".format(paid.value) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Delete confirmation modal -->
+{% if viewing %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete {{ entity.name }}?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> This action cannot be undone. 
+                    {% if entity_type == 'customer' %}
+                    This customer cannot be deleted if they have existing invoices.
+                    {% endif %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form action="{{ url_for('entities.delete', entity_id=entity.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Delete {{ entity_type | capitalize }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

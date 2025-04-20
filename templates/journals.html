@@ -1,0 +1,170 @@
+{% extends "layout.html" %}
+
+{% block title %}Journal Entries{% endblock %}
+{% block page_title %}Journal Entries{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('journals.create') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> New Journal Entry
+    </a>
+    
+    <div class="dropdown ms-2">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="journalFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-filter me-1"></i> Filter
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="journalFilterDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('journals.index') }}">All Entries</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('journals.index', status='posted') }}">Posted Entries</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('journals.index', status='draft') }}">Draft Entries</a></li>
+        </ul>
+    </div>
+    
+    <a href="{{ url_for('journals.export_csv') }}" class="btn btn-outline-success ms-2">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Date filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="startDate" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" 
+                       value="{{ request.args.get('start_date', '') }}">
+            </div>
+            <div class="col-md-4">
+                <label for="endDate" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="endDate" name="end_date"
+                       value="{{ request.args.get('end_date', '') }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
+                <a href="{{ url_for('journals.index') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Journal entries listing -->
+<div class="card mb-4">
+    <div class="card-body">
+        {% if journals %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Description</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for journal in journals %}
+                    <tr>
+                        <td>{{ journal.entry_date.strftime('%b %d, %Y') }}</td>
+                        <td><a href="{{ url_for('journals.view', journal_id=journal.id) }}">{{ journal.reference or 'JE-' + journal.id|string }}</a></td>
+                        <td>{{ journal.description or 'N/A' }}</td>
+                        <td>
+                            {% set total_amount = 0 %}
+                            {% for item in journal.items %}
+                                {% set total_amount = total_amount + item.debit_amount %}
+                            {% endfor %}
+                            ${{ "{:,.2f}".format(total_amount) }}
+                        </td>
+                        <td>
+                            {% if journal.is_posted %}
+                            <span class="badge bg-success">Posted</span>
+                            {% else %}
+                            <span class="badge bg-warning">Draft</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ journal.created_by.username }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('journals.view', journal_id=journal.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if not journal.is_posted %}
+                                <a href="{{ url_for('journals.edit', journal_id=journal.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#postModal-{{ journal.id }}" title="Post">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ journal.id }}" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Post confirmation modal -->
+                            <div class="modal fade" id="postModal-{{ journal.id }}" tabindex="-1" aria-labelledby="postModalLabel-{{ journal.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="postModalLabel-{{ journal.id }}">Confirm Posting</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to post this journal entry? Once posted, it cannot be edited or deleted.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <form action="{{ url_for('journals.post', journal_id=journal.id) }}" method="post">
+                                                <button type="submit" class="btn btn-success">Post Entry</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Delete confirmation modal -->
+                            <div class="modal fade" id="deleteModal-{{ journal.id }}" tabindex="-1" aria-labelledby="deleteModalLabel-{{ journal.id }}" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="deleteModalLabel-{{ journal.id }}">Confirm Deletion</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>Are you sure you want to delete this journal entry?</p>
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i> This action cannot be undone.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <form action="{{ url_for('journals.delete', journal_id=journal.id) }}" method="post">
+                                                <button type="submit" class="btn btn-danger">Delete Entry</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No journal entries found. Create your first entry by clicking the "New Journal Entry" button.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/journals.js') }}"></script>
+{% endblock %}

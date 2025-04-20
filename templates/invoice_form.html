@@ -1,0 +1,244 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit Invoice' if invoice else 'Create Invoice' }}{% endblock %}
+{% block page_title %}{{ 'Edit Invoice' if invoice else 'Create Invoice' }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('invoices.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Invoices
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <form id="invoiceForm" action="{{ url_for('invoices.edit', invoice_id=invoice.id) if invoice else url_for('invoices.create') }}" method="post">
+            <!-- Invoice header -->
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <label for="entityName" class="form-label">Customer</label>
+                    <div class="input-group">
+                        <input type="hidden" id="entityId" name="entityId" value="{{ invoice.entity_id if invoice else '' }}" required>
+                        <input type="text" class="form-control" id="entityName" 
+                               placeholder="Select a customer" 
+                               value="{{ invoice.entity.name if invoice else '' }}" 
+                               readonly required>
+                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#customerModal">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="issueDate" class="form-label">Issue Date</label>
+                            <input type="date" class="form-control" id="issueDate" name="issueDate" 
+                                   value="{{ invoice.issue_date.strftime('%Y-%m-%d') if invoice else today }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="dueDate" class="form-label">Due Date</label>
+                            <input type="date" class="form-control" id="dueDate" name="dueDate" 
+                                   value="{{ invoice.due_date.strftime('%Y-%m-%d') if invoice else (invoice.issue_date + timedelta(days=30)).strftime('%Y-%m-%d') if invoice else '' }}" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Invoice line items -->
+            <h5 class="card-title mb-3">Line Items</h5>
+            
+            <div id="lineItemsContainer">
+                {% if invoice %}
+                    {% for item in invoice.items %}
+                    <div class="invoice-line-item card bg-dark mb-3" data-line-number="{{ loop.index }}">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-5 mb-2">
+                                    <label for="description_{{ loop.index }}" class="form-label">Description</label>
+                                    <input type="text" class="form-control" id="description_{{ loop.index }}" 
+                                           name="items[{{ loop.index }}][description]" 
+                                           value="{{ item.description }}" required>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <label for="quantity_{{ loop.index }}" class="form-label">Quantity</label>
+                                    <input type="number" class="form-control line-quantity" id="quantity_{{ loop.index }}" 
+                                           name="items[{{ loop.index }}][quantity]" 
+                                           min="0.01" step="0.01" value="{{ item.quantity }}" required>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <label for="unit_price_{{ loop.index }}" class="form-label">Unit Price</label>
+                                    <input type="number" class="form-control line-price" id="unit_price_{{ loop.index }}" 
+                                           name="items[{{ loop.index }}][unit_price]" 
+                                           min="0.01" step="0.01" value="{{ item.unit_price }}" required>
+                                </div>
+                                <div class="col-md-2 mb-2">
+                                    <label for="line_total_{{ loop.index }}" class="form-label">Line Total</label>
+                                    <input type="text" class="form-control line-total" id="line_total_{{ loop.index }}" 
+                                           value="${{ (item.quantity * item.unit_price) | round(2) }}" readonly>
+                                </div>
+                                <div class="col-md-1 mb-2 d-flex align-items-end">
+                                    <button type="button" class="btn btn-danger remove-line-item" title="Remove Line">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-6">
+                                    <label for="account_name_{{ loop.index }}" class="form-label">Revenue Account</label>
+                                    <div class="input-group">
+                                        <input type="hidden" id="account_id_{{ loop.index }}" 
+                                               name="items[{{ loop.index }}][account_id]" 
+                                               value="{{ item.account_id }}" required>
+                                        <input type="text" class="form-control" id="account_name_{{ loop.index }}" 
+                                               placeholder="Select an account" 
+                                               value="{{ item.account.name }}" readonly required>
+                                        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#accountModal_{{ loop.index }}">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <button type="button" id="addLineItemBtn" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i> Add Line Item
+                </button>
+            </div>
+            
+            <!-- Invoice totals -->
+            <div class="row justify-content-end mb-4">
+                <div class="col-md-4">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Total:</h6>
+                                <h5 class="mb-0" id="displayInvoiceTotal">${{ "{:,.2f}".format(invoice.total_amount) if invoice else "0.00" }}</h5>
+                                <input type="hidden" id="invoiceTotal" name="invoiceTotal" value="{{ invoice.total_amount if invoice else 0 }}">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Invoice notes -->
+            <div class="mb-4">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3">{{ invoice.notes if invoice else '' }}</textarea>
+            </div>
+            
+            <!-- Submit buttons -->
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('invoices.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">{{ 'Update Invoice' if invoice else 'Create Invoice' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Customer Selection Modal -->
+<div class="modal fade" id="customerModal" tabindex="-1" aria-labelledby="customerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customerModalLabel">Select Customer</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="customerSearchInput" placeholder="Search customers...">
+                </div>
+                
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Contact</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for customer in customers %}
+                            <tr class="customer-item">
+                                <td>{{ customer.name }}</td>
+                                <td>{{ customer.contact_name or 'N/A' }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary select-customer" 
+                                            data-customer-id="{{ customer.id }}" 
+                                            data-customer-name="{{ customer.name }}">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Account Selection Modal Template -->
+<div class="modal fade" id="accountModalTemplate" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Revenue Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" placeholder="Search accounts...">
+                </div>
+                
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in revenue_accounts %}
+                            <tr>
+                                <td>{{ account.code }}</td>
+                                <td>{{ account.name }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary select-account" 
+                                            data-account-id="{{ account.id }}" 
+                                            data-account-name="{{ account.name }}">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/invoices.js') }}"></script>
+{% endblock %}

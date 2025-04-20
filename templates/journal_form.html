@@ -1,0 +1,202 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit Journal Entry' if journal else 'Create Journal Entry' }}{% endblock %}
+{% block page_title %}{{ 'Edit Journal Entry' if journal else 'Create Journal Entry' }}{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('journals.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Journal Entries
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <form id="journalEntryForm" action="{{ url_for('journals.edit', journal_id=journal.id) if journal else url_for('journals.create') }}" method="post">
+            <!-- Journal header -->
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <label for="entryDate" class="form-label">Entry Date</label>
+                    <input type="date" class="form-control" id="entryDate" name="entry_date" 
+                           value="{{ journal.entry_date.strftime('%Y-%m-%d') if journal else today }}" required>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="reference" class="form-label">Reference</label>
+                    <input type="text" class="form-control" id="reference" name="reference" 
+                           value="{{ journal.reference if journal else '' }}" placeholder="Optional">
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <input type="text" class="form-control" id="description" name="description" 
+                           value="{{ journal.description if journal else '' }}" placeholder="Optional">
+                </div>
+            </div>
+            
+            <!-- Journal items -->
+            <h5 class="card-title mb-3">Line Items</h5>
+            
+            <div id="journalItemsContainer">
+                {% if journal %}
+                    {% for item in journal.items %}
+                    <div class="journal-item-row" data-line-number="{{ loop.index }}">
+                        <div class="card bg-dark mb-3">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-5 mb-2">
+                                        <label for="account_name_{{ loop.index }}" class="form-label">Account</label>
+                                        <div class="input-group">
+                                            <input type="hidden" id="account_id_{{ loop.index }}" 
+                                                   name="items[{{ loop.index }}][account_id]" 
+                                                   value="{{ item.account_id }}" required>
+                                            <input type="text" class="form-control" id="account_name_{{ loop.index }}" 
+                                                   placeholder="Select an account" 
+                                                   value="{{ item.account.name }}" readonly required>
+                                            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#accountModal_{{ loop.index }}">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label for="description_{{ loop.index }}" class="form-label">Description</label>
+                                        <input type="text" class="form-control" id="description_{{ loop.index }}" 
+                                               name="items[{{ loop.index }}][description]" 
+                                               value="{{ item.description or '' }}">
+                                    </div>
+                                    <div class="col-md-2 mb-2">
+                                        <label class="form-label d-block">Type</label>
+                                        <div class="btn-group" role="group" aria-label="Entry type">
+                                            <input type="radio" class="btn-check entry-type" 
+                                                   name="items[{{ loop.index }}][entry_type]" id="debit_{{ loop.index }}" 
+                                                   value="debit" {{ 'checked' if item.debit_amount > 0 else '' }} required>
+                                            <label class="btn btn-outline-primary" for="debit_{{ loop.index }}">Debit</label>
+                                            <input type="radio" class="btn-check entry-type" 
+                                                   name="items[{{ loop.index }}][entry_type]" id="credit_{{ loop.index }}" 
+                                                   value="credit" {{ 'checked' if item.credit_amount > 0 else '' }}>
+                                            <label class="btn btn-outline-primary" for="credit_{{ loop.index }}">Credit</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1 mb-2 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger remove-journal-item" title="Remove Line">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="row mt-2">
+                                    <div class="col-md-5 mb-2">
+                                        <label for="amount_{{ loop.index }}" class="form-label">Amount</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control entry-amount" id="amount_{{ loop.index }}" 
+                                                   name="items[{{ loop.index }}][amount]" min="0.01" step="0.01" 
+                                                   value="{{ item.debit_amount if item.debit_amount > 0 else item.credit_amount }}" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            
+            <div class="mb-4">
+                <button type="button" id="addJournalItemBtn" class="btn btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i> Add Line Item
+                </button>
+            </div>
+            
+            <!-- Journal totals -->
+            <div class="row justify-content-end mb-4">
+                <div class="col-md-6">
+                    <div class="card bg-dark">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Total Debits:</h6>
+                                <h5 class="mb-0" id="totalDebit">$0.00</h5>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Total Credits:</h6>
+                                <h5 class="mb-0" id="totalCredit">$0.00</h5>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Difference:</h6>
+                                <h5 class="mb-0" id="differenceAmount">$0.00</h5>
+                            </div>
+                            <div id="balancedMessage" class="alert alert-success mb-0" style="display: none;">
+                                <i class="fas fa-check-circle me-2"></i> Journal entry is balanced
+                            </div>
+                            <div id="unbalancedMessage" class="alert alert-danger mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i> Journal entry must be balanced (debits must equal credits)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Submit buttons -->
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('journals.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">{{ 'Update Journal Entry' if journal else 'Create Journal Entry' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Account Selection Modal Template -->
+<div class="modal fade" id="accountModalTemplate" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Select Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="accountSearchInput" placeholder="Search accounts...">
+                </div>
+                
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for account in accounts %}
+                            <tr class="account-item">
+                                <td>{{ account.code }}</td>
+                                <td>{{ account.name }}</td>
+                                <td>{{ account.account_type.name }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-primary select-account" 
+                                            data-account-id="{{ account.id }}" 
+                                            data-account-name="{{ account.name }}">
+                                        Select
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/journals.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block title %}Profit & Loss Report{% endblock %}
+{% block page_title %}Profit & Loss Report{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Reports
+    </a>
+    
+    <button type="button" class="btn btn-outline-success ms-2 export-report" data-report-type="pl" data-format="csv">
+        <i class="fas fa-file-csv me-1"></i> Export CSV
+    </button>
+    
+    <button type="button" class="btn btn-outline-success ms-2 export-report" data-report-type="pl" data-format="excel">
+        <i class="fas fa-file-excel me-1"></i> Export Excel
+    </button>
+    
+    <button type="button" class="btn btn-outline-secondary ms-2" onclick="window.print()">
+        <i class="fas fa-print me-1"></i> Print
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Date filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Apply Filter</button>
+                <a href="{{ url_for('reports.pl') }}" class="btn btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- P&L Report -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">Profit & Loss Statement</h5>
+            <span>Period: {{ report_data.period }}</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- Revenue Section -->
+        <h5 class="mb-3">Revenue</h5>
+        <div class="table-responsive mb-4">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Account Code</th>
+                        <th>Account Name</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if report_data.revenue %}
+                        {% for item in report_data.revenue %}
+                            <tr>
+                                <td>{{ item.account_code }}</td>
+                                <td>{{ item.account_name }}</td>
+                                <td class="text-end">${{ "{:,.2f}".format(item.balance) }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center">No revenue data for this period</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark">
+                        <th colspan="2">Total Revenue</th>
+                        <th class="text-end">${{ "{:,.2f}".format(report_data.totals.revenue) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Expenses Section -->
+        <h5 class="mb-3">Expenses</h5>
+        <div class="table-responsive mb-4">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Account Code</th>
+                        <th>Account Name</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if report_data.expenses %}
+                        {% for item in report_data.expenses %}
+                            <tr>
+                                <td>{{ item.account_code }}</td>
+                                <td>{{ item.account_name }}</td>
+                                <td class="text-end">${{ "{:,.2f}".format(item.balance) }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center">No expense data for this period</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-dark">
+                        <th colspan="2">Total Expenses</th>
+                        <th class="text-end">${{ "{:,.2f}".format(report_data.totals.expenses) }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Net Income Section -->
+        <div class="card bg-dark mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4>Net Income</h4>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <h4 class="{{ 'text-success' if report_data.totals.net_income >= 0 else 'text-danger' }}">
+                            ${{ "{:,.2f}".format(report_data.totals.net_income) }}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- P&L Visualization -->
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Income & Expenses Visualized</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <h6 class="text-center mb-3">Revenue Breakdown</h6>
+                        <div style="height: 300px;">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <h6 class="text-center mb-3">Expense Breakdown</h6>
+                        <div style="height: 300px;">
+                            <canvas id="expenseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Invisible element to store data for charts -->
+                <div id="plChart" data-report="{{ report_data | tojson }}" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+{% endblock %}

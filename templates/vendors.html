@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+
+{% block title %}Vendors{% endblock %}
+{% block page_title %}Vendors{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('entities.create_vendor') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> New Vendor
+    </a>
+    
+    <div class="dropdown ms-2">
+        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="vendorFilterDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-filter me-1"></i> Filter
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="vendorFilterDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('entities.vendors') }}">All Vendors</a></li>
+            <!-- Future filters can be added here as features are expanded -->
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Vendor Search -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" class="form-control" id="searchQuery" name="q" placeholder="Search vendors..." value="{{ request.args.get('q', '') }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Vendor listing -->
+<div class="card mb-4">
+    <div class="card-body">
+        {% if vendors %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for vendor in vendors %}
+                    <tr>
+                        <td><a href="{{ url_for('entities.view', entity_id=vendor.id) }}">{{ vendor.name }}</a></td>
+                        <td>{{ vendor.contact_name or 'N/A' }}</td>
+                        <td>{{ vendor.email or 'N/A' }}</td>
+                        <td>{{ vendor.phone or 'N/A' }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('entities.view', entity_id=vendor.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('entities.edit', entity_id=vendor.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <!-- Future actions like purchase orders can be added here -->
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No vendors found. Create your first vendor by clicking the "New Vendor" button.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

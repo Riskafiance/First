@@ -1,0 +1,139 @@
+{% extends "layout.html" %}
+
+{% block title %}Reports{% endblock %}
+{% block page_title %}Financial Reports{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" id="reportTypeDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-file-alt me-1"></i> Generate Report
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="reportTypeDropdown">
+            <li><a class="dropdown-item" href="{{ url_for('reports.pl') }}">Profit & Loss</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports.index') }}">Balance Sheet (Coming Soon)</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports.index') }}">Cash Flow (Coming Soon)</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('reports.index') }}">Tax Report (Coming Soon)</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Report Types -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Standard Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('reports.pl') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Profit & Loss</h6>
+                            <p class="mb-1 text-muted">View income, expenses, and net profit over time</p>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">
+                            <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled">
+                        <div>
+                            <h6 class="mb-1">Balance Sheet</h6>
+                            <p class="mb-1 text-muted">View assets, liabilities, and equity</p>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">
+                            Coming Soon
+                        </span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled">
+                        <div>
+                            <h6 class="mb-1">Cash Flow</h6>
+                            <p class="mb-1 text-muted">Track where money is coming from and going to</p>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">
+                            Coming Soon
+                        </span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled">
+                        <div>
+                            <h6 class="mb-1">Accounts Receivable Aging</h6>
+                            <p class="mb-1 text-muted">Track outstanding customer invoices</p>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">
+                            Coming Soon
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Report Tools -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Report Tools</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('journals.export_csv') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="mb-1">Export Journal Entries</h6>
+                            <p class="mb-1 text-muted">Download all journal entries as CSV</p>
+                        </div>
+                        <span class="badge bg-success rounded-pill">
+                            <i class="fas fa-file-csv"></i>
+                        </span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled">
+                        <div>
+                            <h6 class="mb-1">Schedule Reports</h6>
+                            <p class="mb-1 text-muted">Set up automatic report generation and delivery</p>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">
+                            Coming Soon
+                        </span>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center disabled">
+                        <div>
+                            <h6 class="mb-1">Custom Reports</h6>
+                            <p class="mb-1 text-muted">Create custom reports to meet your specific needs</p>
+                        </div>
+                        <span class="badge bg-secondary rounded-pill">
+                            Coming Soon
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Widgets -->
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Financial Snapshot</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> Select a report from above to view detailed financial information.
+                </div>
+                
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-pie fa-5x mb-3 text-primary"></i>
+                    <h4>Your Financial Reports Dashboard</h4>
+                    <p class="text-muted">Generate, view, and export financial reports for your business</p>
+                    <a href="{{ url_for('reports.pl') }}" class="btn btn-primary mt-2">
+                        Generate Profit & Loss Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
