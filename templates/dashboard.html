@@ -146,8 +146,8 @@
                                 <td>
                                     <a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}">{{ invoice.invoice_number }}</a>
                                 </td>
-                                <td>{{ invoice.customer.name if invoice.customer else 'N/A' }}</td>
-                                <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ invoice.entity.name if invoice.entity else 'N/A' }}</td>
+                                <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
                                 <td>${{ "{:,.2f}".format(invoice.total_amount) }}</td>
                                 <td>
                                     {% if invoice.status == 'paid' %}
@@ -196,8 +196,8 @@
                                 <td>
                                     <a href="{{ url_for('expenses.view', expense_id=expense.id) }}">{{ expense.expense_number }}</a>
                                 </td>
-                                <td>{{ expense.vendor.name if expense.vendor else 'N/A' }}</td>
-                                <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ expense.entity.name if expense.entity else 'N/A' }}</td>
+                                <td>{{ expense.expense_date.strftime('%Y-%m-%d') }}</td>
                                 <td>${{ "{:,.2f}".format(expense.total_amount) }}</td>
                                 <td>
                                     {% if expense.status == 'paid' %}
@@ -244,12 +244,12 @@
                         <tbody>
                             {% for entry in recent_journals %}
                             <tr>
-                                <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ entry.reference }}</td>
                                 <td>{{ entry.description }}</td>
-                                <td>{{ entry.debit_account.name if entry.debit_account else 'N/A' }}</td>
-                                <td>{{ entry.credit_account.name if entry.credit_account else 'N/A' }}</td>
-                                <td>${{ "{:,.2f}".format(entry.amount) }}</td>
+                                <td>Multiple Accounts</td>
+                                <td>Multiple Accounts</td>
+                                <td><a href="{{ url_for('journals.view', entry_id=entry.id) }}" class="btn btn-sm btn-outline-primary">View Details</a></td>
                             </tr>
                             {% else %}
                             <tr>
