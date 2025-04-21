@@ -235,7 +235,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('invoices.list') }}" class="nav-link {{ 'active' if request.endpoint == 'invoices.list' }}">
+                            <a href="{{ url_for('invoices.index') }}" class="nav-link {{ 'active' if request.endpoint == 'invoices.index' }}">
                                 <i class="fas fa-file-invoice-dollar"></i> Invoices
                             </a>
                         </li>
@@ -257,7 +257,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('expenses.list') }}" class="nav-link {{ 'active' if request.endpoint == 'expenses.list' }}">
+                            <a href="{{ url_for('expenses.index') }}" class="nav-link {{ 'active' if request.endpoint == 'expenses.index' }}">
                                 <i class="fas fa-receipt"></i> Expenses
                             </a>
                         </li>
@@ -279,7 +279,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('inventory.stock') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory.stock' }}">
+                            <a href="{{ url_for('inventory.stock_valuation_report') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory.stock_valuation_report' }}">
                                 <i class="fas fa-warehouse"></i> Stock Levels
                             </a>
                         </li>
@@ -301,7 +301,7 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="assetsMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('assets.list') }}" class="nav-link {{ 'active' if request.endpoint == 'assets.list' }}">
+                            <a href="{{ url_for('fixed_assets.assets') }}" class="nav-link {{ 'active' if request.endpoint == 'fixed_assets.assets' }}">
                                 <i class="fas fa-list"></i> Asset Register
                             </a>
                         </li>
