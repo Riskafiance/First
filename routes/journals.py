@@ -261,7 +261,11 @@ def delete(journal_id):
         flash('Cannot delete a posted journal entry.', 'danger')
         return redirect(url_for('journals.view', journal_id=journal_id))
     
-    # Delete the entry and its items
+    # First delete all journal items
+    for item in journal.items:
+        db.session.delete(item)
+    
+    # Then delete the journal entry
     db.session.delete(journal)
     db.session.commit()
     
