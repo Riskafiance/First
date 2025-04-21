@@ -37,6 +37,12 @@
     </button>
     {% endif %}
     
+    {% if expense.status.name != 'Paid' and expense.status.name != 'Cancelled' %}
+    <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#cancelModal">
+        <i class="fas fa-times me-1"></i> Cancel
+    </button>
+    {% endif %}
+    
     <button class="btn btn-outline-secondary ms-2" onclick="window.print()">
         <i class="fas fa-print me-1"></i> Print
     </button>
@@ -260,6 +266,30 @@
                     <button type="submit" class="btn btn-success">Record Payment</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel expense modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelModalLabel">Cancel Expense</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel this expense?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i> This will create a reversing entry in the accounting system if the expense has been approved.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep Expense</button>
+                <form action="{{ url_for('expenses.cancel', expense_id=expense.id) }}" method="post">
+                    <button type="submit" class="btn btn-danger">Yes, Cancel Expense</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
