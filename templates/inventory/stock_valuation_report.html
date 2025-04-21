@@ -1,28 +1,31 @@
-{% extends "layout.html" %}
+{% extends 'base.html' %}
 
 {% block title %}Stock Valuation Report{% endblock %}
-{% block page_title %}Stock Valuation Report{% endblock %}
 
-{% block page_actions %}
-<div class="btn-group" role="group">
-    <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
-    </a>
-    <button class="btn btn-outline-success ms-2" onclick="printReport()">
-        <i class="fas fa-print me-1"></i> Print Report
-    </button>
-    <a href="{{ url_for('inventory.export_stock_valuation') }}" class="btn btn-outline-primary ms-2">
-        <i class="fas fa-file-excel me-1"></i> Export to Excel
-    </a>
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Stock Valuation Report</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('inventory.export_stock_valuation') }}" class="btn btn-outline-success">
+            <i class="fas fa-file-excel me-1"></i> Export to Excel
+        </a>
+        <a href="{{ url_for('inventory.dashboard') }}" class="btn btn-outline-secondary ms-2">
+            <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
 </div>
 {% endblock %}
 
 {% block content %}
+<!-- Filters -->
 <div class="card mb-4">
-    <div class="card-header bg-transparent">
-        <form method="get" class="row g-2">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <!-- Warehouse Filter -->
             <div class="col-md-3">
-                <select class="form-select" id="warehouse_id" name="warehouse_id">
+                <label for="warehouse_id" class="form-label">Warehouse</label>
+                <select name="warehouse_id" id="warehouse_id" class="form-select">
                     <option value="">All Warehouses</option>
                     {% for warehouse in warehouses %}
                     <option value="{{ warehouse.id }}" {% if request.args.get('warehouse_id')|int == warehouse.id %}selected{% endif %}>
@@ -31,8 +34,11 @@
                     {% endfor %}
                 </select>
             </div>
+            
+            <!-- Category Filter -->
             <div class="col-md-3">
-                <select class="form-select" id="category_id" name="category_id">
+                <label for="category_id" class="form-label">Category</label>
+                <select name="category_id" id="category_id" class="form-select">
                     <option value="">All Categories</option>
                     {% for category in categories %}
                     <option value="{{ category.id }}" {% if request.args.get('category_id')|int == category.id %}selected{% endif %}>
@@ -41,263 +47,229 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
-                <div class="input-group">
-                    <input type="text" class="form-control" id="search" name="search" placeholder="Search by product name or SKU" value="{{ request.args.get('search', '') }}">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
+            
+            <!-- Search -->
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" name="search" id="search" class="form-control" placeholder="Search by name or SKU" value="{{ request.args.get('search', '') }}">
             </div>
+            
+            <!-- Sort -->
             <div class="col-md-2">
-                <select class="form-select" id="sort" name="sort" onchange="this.form.submit()">
-                    <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Sort by Name</option>
-                    <option value="value_high" {% if request.args.get('sort') == 'value_high' %}selected{% endif %}>Value (High to Low)</option>
-                    <option value="value_low" {% if request.args.get('sort') == 'value_low' %}selected{% endif %}>Value (Low to High)</option>
-                    <option value="quantity_high" {% if request.args.get('sort') == 'quantity_high' %}selected{% endif %}>Quantity (High to Low)</option>
-                    <option value="quantity_low" {% if request.args.get('sort') == 'quantity_low' %}selected{% endif %}>Quantity (Low to High)</option>
+                <label for="sort" class="form-label">Sort By</label>
+                <select name="sort" id="sort" class="form-select">
+                    <option value="name" {% if request.args.get('sort') == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                    <option value="value_high" {% if request.args.get('sort') == 'value_high' %}selected{% endif %}>Value (High-Low)</option>
+                    <option value="value_low" {% if request.args.get('sort') == 'value_low' %}selected{% endif %}>Value (Low-High)</option>
+                    <option value="quantity_high" {% if request.args.get('sort') == 'quantity_high' %}selected{% endif %}>Quantity (High-Low)</option>
+                    <option value="quantity_low" {% if request.args.get('sort') == 'quantity_low' %}selected{% endif %}>Quantity (Low-High)</option>
                 </select>
+            </div>
+            
+            <!-- Submit -->
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Filter</button>
             </div>
         </form>
     </div>
 </div>
 
-<div id="report-content">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Stock Valuation as of {{ datetime_now.strftime('%Y-%m-%d %H:%M') }}</h5>
-            <div>
-                <span class="badge bg-primary">Total Value: ${{ '{:,.2f}'.format(total_value) }}</span>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>SKU</th>
-                            <th>Product</th>
-                            <th>Category</th>
-                            {% if not request.args.get('warehouse_id') %}
-                            <th>Warehouse</th>
-                            {% endif %}
-                            <th class="text-end">Quantity</th>
-                            <th class="text-end">Cost per Unit</th>
-                            <th class="text-end">Total Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in stock_items %}
-                        <tr>
-                            <td>{{ item.product.sku }}</td>
-                            <td>
-                                <a href="{{ url_for('inventory.view_product', product_id=item.product.id) }}">
-                                    {{ item.product.name }}
-                                </a>
-                            </td>
-                            <td>{{ item.product.category.name if item.product.category else 'Uncategorized' }}</td>
-                            {% if not request.args.get('warehouse_id') %}
-                            <td>{{ item.warehouse.name }}</td>
-                            {% endif %}
-                            <td class="text-end">{{ item.quantity }} {{ item.product.uom.abbreviation }}</td>
-                            <td class="text-end">${{ '{:.2f}'.format(item.product.cost_price) }}</td>
-                            <td class="text-end">${{ '{:.2f}'.format(item.quantity * item.product.cost_price) }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="{% if not request.args.get('warehouse_id') %}7{% else %}6{% endif %}" class="text-center py-3">
-                                No stock items found
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <th colspan="{% if not request.args.get('warehouse_id') %}6{% else %}5{% endif %}" class="text-end">Total:</th>
-                            <th class="text-end">${{ '{:,.2f}'.format(total_value) }}</th>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    {% if show_by_category %}
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5 class="mb-0">Stock Value by Category</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Category</th>
-                                    <th class="text-end">Value</th>
-                                    <th>% of Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for category, value in category_totals %}
-                                <tr>
-                                    <td>{{ category }}</td>
-                                    <td class="text-end">${{ '{:,.2f}'.format(value) }}</td>
-                                    <td>
-                                        <div class="progress">
-                                            <div class="progress-bar" role="progressbar" 
-                                                style="width: {{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}%" 
-                                                aria-valuenow="{{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}" 
-                                                aria-valuemin="0" 
-                                                aria-valuemax="100">
-                                                {{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}%
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <!-- Total Items -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-primary bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-boxes fa-2x text-primary"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Total Items</h6>
+                        <h3 class="mb-0">{{ stock_items|length }}</h3>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <canvas id="categoryChart" height="250"></canvas>
-                </div>
             </div>
         </div>
     </div>
-    {% endif %}
-
-    {% if show_by_warehouse %}
-    <div class="card mt-4">
-        <div class="card-header">
-            <h5 class="mb-0">Stock Value by Warehouse</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-8">
-                    <div class="table-responsive">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Warehouse</th>
-                                    <th class="text-end">Value</th>
-                                    <th>% of Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for warehouse, value in warehouse_totals %}
-                                <tr>
-                                    <td>{{ warehouse }}</td>
-                                    <td class="text-end">${{ '{:,.2f}'.format(value) }}</td>
-                                    <td>
-                                        <div class="progress">
-                                            <div class="progress-bar" role="progressbar" 
-                                                style="width: {{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}%" 
-                                                aria-valuenow="{{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}" 
-                                                aria-valuemin="0" 
-                                                aria-valuemax="100">
-                                                {{ (value / total_value * 100)|round|int if total_value > 0 else 0 }}%
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <canvas id="warehouseChart" height="250"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-</div>
-{% endblock %}
-
-{% block scripts %}
-{{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    // Print function
-    function printReport() {
-        const printContents = document.getElementById('report-content').innerHTML;
-        const originalContents = document.body.innerHTML;
-        
-        document.body.innerHTML = `
-            <header class="d-print-none">
-                <h1 class="text-center">Stock Valuation Report</h1>
-                <p class="text-center">Generated on {{ datetime_now.strftime('%Y-%m-%d %H:%M') }}</p>
-            </header>
-            ${printContents}
-        `;
-        
-        window.print();
-        document.body.innerHTML = originalContents;
-    }
     
-    // Charts
-    document.addEventListener('DOMContentLoaded', function() {
-        {% if show_by_category %}
-        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-        new Chart(categoryCtx, {
-            type: 'pie',
-            data: {
-                labels: [{% for category, value in category_totals %}'{{ category }}',{% endfor %}],
-                datasets: [{
-                    data: [{% for category, value in category_totals %}{{ value }},{% endfor %}],
-                    backgroundColor: [
-                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-                        '#5a5c69', '#6f42c1', '#20c997', '#fd7e14', '#6c757d'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Stock Value by Category'
-                    }
-                }
-            }
-        });
-        {% endif %}
-        
-        {% if show_by_warehouse %}
-        const warehouseCtx = document.getElementById('warehouseChart').getContext('2d');
-        new Chart(warehouseCtx, {
-            type: 'pie',
-            data: {
-                labels: [{% for warehouse, value in warehouse_totals %}'{{ warehouse }}',{% endfor %}],
-                datasets: [{
-                    data: [{% for warehouse, value in warehouse_totals %}{{ value }},{% endfor %}],
-                    backgroundColor: [
-                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
-                        '#5a5c69', '#6f42c1', '#20c997', '#fd7e14', '#6c757d'
-                    ]
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'right',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Stock Value by Warehouse'
-                    }
-                }
-            }
-        });
-        {% endif %}
-    });
-</script>
+    <!-- Total Value -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-success bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Total Value</h6>
+                        <h3 class="mb-0">${{ '{:,.2f}'.format(total_value) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Report Date -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 bg-info bg-opacity-10 p-3 rounded">
+                        <i class="fas fa-calendar fa-2x text-info"></i>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <h6 class="text-muted mb-1">Report Date</h6>
+                        <h3 class="mb-0">{{ datetime_now.strftime('%Y-%m-%d') }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Breakdown by Category -->
+{% if show_by_category and category_totals %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Inventory Value by Category</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Value</th>
+                                <th class="text-end">% of Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category, value in category_totals %}
+                            <tr>
+                                <td>{{ category }}</td>
+                                <td class="text-end">${{ '{:,.2f}'.format(value) }}</td>
+                                <td class="text-end">{{ '{:.1f}'.format((value / total_value * 100) if total_value else 0) }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="chart-container" style="height: 300px;">
+                    <!-- Placeholder for chart - in a real app you'd add Chart.js here -->
+                    <div class="d-flex flex-column h-100 justify-content-center align-items-center">
+                        <div class="bg-light rounded-circle p-4 mb-3">
+                            <i class="fas fa-chart-pie fa-3x text-primary"></i>
+                        </div>
+                        <p class="text-muted">Chart visualization would appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Inventory Breakdown by Warehouse -->
+{% if show_by_warehouse and warehouse_totals %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Inventory Value by Warehouse</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Warehouse</th>
+                        <th class="text-end">Value</th>
+                        <th class="text-end">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for warehouse, value in warehouse_totals %}
+                    <tr>
+                        <td>{{ warehouse }}</td>
+                        <td class="text-end">${{ '{:,.2f}'.format(value) }}</td>
+                        <td class="text-end">{{ '{:.1f}'.format((value / total_value * 100) if total_value else 0) }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Stock Items Table -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Stock Items</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>SKU</th>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th>Warehouse</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Unit Cost</th>
+                        <th class="text-end">Total Value</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in stock_items %}
+                    <tr>
+                        <td>{{ item.product.sku }}</td>
+                        <td>
+                            <a href="{{ url_for('inventory.view_product', product_id=item.product.id) }}">
+                                {{ item.product.name }}
+                            </a>
+                        </td>
+                        <td>{{ item.product.category.name if item.product.category else 'Uncategorized' }}</td>
+                        <td>{{ item.warehouse.name }}</td>
+                        <td class="text-end">{{ '{:,.1f}'.format(item.quantity) }} {{ item.product.uom.abbreviation if item.product.uom else '' }}</td>
+                        <td class="text-end">${{ '{:,.2f}'.format(item.product.cost_price) }}</td>
+                        <td class="text-end">${{ '{:,.2f}'.format(item.value) }}</td>
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{{ url_for('inventory.view_product', product_id=item.product.id) }}" class="btn btn-outline-secondary">
+                                    View
+                                </a>
+                                <a href="{{ url_for('inventory.product_transactions', product_id=item.product.id) }}" class="btn btn-outline-info">
+                                    Transactions
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-3">No stock items found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Report Notes -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Report Notes</h6>
+        <ul class="mb-0">
+            <li>This report shows inventory stock and valuation as of {{ datetime_now.strftime('%Y-%m-%d %H:%M') }}</li>
+            <li>Values are calculated based on the current cost price of each product</li>
+            <li>For detailed transaction history, click "Transactions" next to any product</li>
+        </ul>
+    </div>
+</div>
 {% endblock %}
