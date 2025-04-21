@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
-from models import Role, Invoice, Expense, JournalEntry, Account, AccountType
+from models import Role, Invoice, Expense, JournalEntry, JournalItem, Account, AccountType
 from app import db
 from sqlalchemy import func, desc
 import datetime
@@ -69,26 +69,36 @@ def index():
         # Sum income for this month from journal entries
         monthly_income = Decimal('0.00')
         if income_accounts:
-            income_entries = JournalEntry.query.filter(
+            # Find entries within the date range
+            income_entries = db.session.query(JournalEntry, JournalItem).join(
+                JournalItem, JournalEntry.id == JournalItem.journal_entry_id
+            ).filter(
                 JournalEntry.entry_date >= month_start,
                 JournalEntry.entry_date <= month_end,
-                JournalEntry.credit_account_id.in_(income_accounts)
+                JournalItem.account_id.in_(income_accounts),
+                JournalItem.credit_amount > 0
             ).all()
             
-            for entry in income_entries:
-                monthly_income += entry.amount
+            # Sum up the credit amounts (income)
+            for entry, item in income_entries:
+                monthly_income += item.credit_amount
         
         # Sum expenses for this month from journal entries
         monthly_expense = Decimal('0.00')
         if expense_accounts:
-            expense_entries = JournalEntry.query.filter(
+            # Find entries within the date range
+            expense_entries = db.session.query(JournalEntry, JournalItem).join(
+                JournalItem, JournalEntry.id == JournalItem.journal_entry_id
+            ).filter(
                 JournalEntry.entry_date >= month_start,
                 JournalEntry.entry_date <= month_end,
-                JournalEntry.debit_account_id.in_(expense_accounts)
+                JournalItem.account_id.in_(expense_accounts),
+                JournalItem.debit_amount > 0
             ).all()
             
-            for entry in expense_entries:
-                monthly_expense += entry.amount
+            # Sum up the debit amounts (expenses)
+            for entry, item in expense_entries:
+                monthly_expense += item.debit_amount
         
         # Add to data arrays
         income_data.append(float(monthly_income))
