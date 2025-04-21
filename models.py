@@ -3,6 +3,8 @@ from dateutil.relativedelta import relativedelta
 from decimal import Decimal
 from app import db
 from flask_login import UserMixin
+from datetime import datetime, date
+from enum import Enum
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # User roles and permissions
@@ -247,6 +249,100 @@ class ExpenseItem(db.Model):
     
     def __repr__(self):
         return f'<ExpenseItem {self.id} - {self.description}>'
+
+# Budget Period Types
+class BudgetPeriodType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    MONTHLY = 'Monthly'
+    QUARTERLY = 'Quarterly'
+    ANNUAL = 'Annual'
+    CUSTOM = 'Custom'
+    
+    def __repr__(self):
+        return f'<BudgetPeriodType {self.name}>'
+
+# Budget
+class Budget(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    year = db.Column(db.Integer, nullable=False)
+    period_type_id = db.Column(db.Integer, db.ForeignKey('budget_period_type.id'), nullable=False)
+    period_type = db.relationship('BudgetPeriodType')
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<Budget {self.name} ({self.year})>'
+
+# Budget Line Items
+class BudgetItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=False)
+    budget = db.relationship('Budget', backref='items')
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    account = db.relationship('Account')
+    period = db.Column(db.Integer, nullable=False)  # Month (1-12), Quarter (1-4), or custom period number
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    notes = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<BudgetItem {self.id} - {self.account.name} - Period {self.period}>'
+
+# Budget Versions (for revision tracking)
+class BudgetVersion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=False)
+    budget = db.relationship('Budget')
+    version_number = db.Column(db.Integer, nullable=False)
+    version_name = db.Column(db.String(100), nullable=False)
+    is_active = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    notes = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<BudgetVersion {self.version_number} - {self.budget.name}>'
+
+# Financial Forecasts
+class Forecast(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    period_type_id = db.Column(db.Integer, db.ForeignKey('budget_period_type.id'), nullable=False)
+    period_type = db.relationship('BudgetPeriodType')
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<Forecast {self.name}>'
+
+# Forecast Items
+class ForecastItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    forecast_id = db.Column(db.Integer, db.ForeignKey('forecast.id'), nullable=False)
+    forecast = db.relationship('Forecast', backref='items')
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    account = db.relationship('Account')
+    period = db.Column(db.Integer, nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    growth_factor = db.Column(db.Numeric(10, 4), default=0)  # For percentage-based forecasting
+    notes = db.Column(db.Text)
+    
+    def __repr__(self):
+        return f'<ForecastItem {self.id} - {self.account.name} - Period {self.period}>'
 
 # Product Category
 class ProductCategory(db.Model):

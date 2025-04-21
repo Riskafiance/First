@@ -469,3 +469,93 @@ def get_next_sequence(sequence_name, initial_value=1):
         sequence.value += 1
         db.session.commit()
         return sequence.value
+
+def month_name(month_number):
+    """Get the name of a month from its number (1-12)"""
+    import calendar
+    return calendar.month_name[month_number]
+
+def quarter_name(quarter_number, year=None):
+    """Get the name of a quarter from its number (1-4)"""
+    if year:
+        return f"Q{quarter_number} {year}"
+    return f"Q{quarter_number}"
+
+def get_account_balance(account_id, start_date=None, end_date=None):
+    """Get the balance of an account for a specific date range"""
+    from models import Account, JournalItem, JournalEntry, AccountType
+    from sqlalchemy import func
+    from decimal import Decimal
+    
+    # Get the account
+    account = Account.query.get(account_id)
+    if not account:
+        return Decimal('0.00')
+    
+    # Base query
+    query = db.session.query(
+        func.sum(JournalItem.debit_amount).label('total_debit'),
+        func.sum(JournalItem.credit_amount).label('total_credit')
+    ).join(
+        JournalEntry, JournalItem.journal_entry_id == JournalEntry.id
+    ).filter(
+        JournalItem.account_id == account_id,
+        JournalEntry.is_posted == True
+    )
+    
+    # Apply date filters
+    if start_date:
+        query = query.filter(JournalEntry.entry_date >= start_date)
+    if end_date:
+        query = query.filter(JournalEntry.entry_date <= end_date)
+    
+    # Execute query
+    result = query.first()
+    
+    # Calculate balance based on account type
+    total_debit = result.total_debit or Decimal('0.00')
+    total_credit = result.total_credit or Decimal('0.00')
+    
+    # For asset and expense accounts, debit increases the balance
+    if account.account_type.name in [AccountType.ASSET, AccountType.EXPENSE]:
+        balance = total_debit - total_credit
+    # For liability, equity, and revenue accounts, credit increases the balance
+    else:
+        balance = total_credit - total_debit
+    
+    return balance
+
+def generate_report_data(data, periods, account_type):
+    """Generate report data with the proper structure for budgeting"""
+    from decimal import Decimal
+    
+    result = []
+    for account_id, account_data in data.items():
+        account_total = Decimal('0.00')
+        period_values = []
+        
+        for period_info in periods:
+            period = period_info['period']
+            amount = account_data['periods'].get(period, Decimal('0.00'))
+            period_values.append({
+                'period': period, 
+                'name': period_info['name'],
+                'amount': amount
+            })
+            account_total += amount
+        
+        # Sort periods
+        period_values.sort(key=lambda x: x['period'])
+        
+        # Only include accounts with values
+        if account_total != 0:
+            result.append({
+                'account': account_data['account'],
+                'periods': period_values,
+                'total': account_total
+            })
+    
+    # Sort by account code
+    result.sort(key=lambda x: x['account'].code)
+    
+    return result
