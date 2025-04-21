@@ -82,8 +82,8 @@ def index():
         monthly_expense = Decimal('0.00')
         if expense_accounts:
             expense_entries = JournalEntry.query.filter(
-                JournalEntry.date >= month_start,
-                JournalEntry.date <= month_end,
+                JournalEntry.entry_date >= month_start,
+                JournalEntry.entry_date <= month_end,
                 JournalEntry.debit_account_id.in_(expense_accounts)
             ).all()
             

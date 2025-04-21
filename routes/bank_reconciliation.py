@@ -415,8 +415,8 @@ def reconcile(statement_id):
     
     # Get journal entries within the date range that involve this GL account
     journal_entries = JournalEntry.query.filter(
-        JournalEntry.date >= statement.start_date,
-        JournalEntry.date <= statement.end_date
+        JournalEntry.entry_date >= statement.start_date,
+        JournalEntry.entry_date <= statement.end_date
     ).filter(
         db.or_(
             JournalEntry.debit_account_id == gl_account_id,
@@ -682,7 +682,7 @@ def apply_rules(statement_id):
             if rule.match_pattern.lower() in transaction.description.lower():
                 # For matching transactions, create a new journal entry
                 journal_entry = JournalEntry(
-                    date=transaction.transaction_date,
+                    entry_date=transaction.transaction_date,
                     reference=f"Auto-matched: {transaction.reference or transaction.description[:20]}",
                     description=transaction.description,
                     amount=transaction.amount
