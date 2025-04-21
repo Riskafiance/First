@@ -150,12 +150,12 @@
                                 <td>{{ invoice.issue_date.strftime('%Y-%m-%d') }}</td>
                                 <td>${{ "{:,.2f}".format(invoice.total_amount) }}</td>
                                 <td>
-                                    {% if invoice.status == 'paid' %}
+                                    {% if invoice.status.name == 'Paid' %}
                                     <span class="badge bg-success">Paid</span>
-                                    {% elif invoice.status == 'overdue' %}
+                                    {% elif invoice.status.name == 'Overdue' %}
                                     <span class="badge bg-danger">Overdue</span>
                                     {% else %}
-                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    <span class="badge bg-warning text-dark">{{ invoice.status.name }}</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -200,12 +200,12 @@
                                 <td>{{ expense.expense_date.strftime('%Y-%m-%d') }}</td>
                                 <td>${{ "{:,.2f}".format(expense.total_amount) }}</td>
                                 <td>
-                                    {% if expense.status == 'paid' %}
+                                    {% if expense.status.name == 'Paid' %}
                                     <span class="badge bg-success">Paid</span>
-                                    {% elif expense.status == 'overdue' %}
-                                    <span class="badge bg-danger">Overdue</span>
+                                    {% elif expense.status.name == 'Rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
                                     {% else %}
-                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    <span class="badge bg-warning text-dark">{{ expense.status.name }}</span>
                                     {% endif %}
                                 </td>
                             </tr>
