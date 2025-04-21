@@ -49,6 +49,60 @@ def login():
     
     return render_template('login.html')
 
+@auth_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """User registration"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
+        
+        # Validate inputs
+        if not username or not email or not password or not confirm_password:
+            flash('All fields are required', 'error')
+            return render_template('register.html')
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('register.html')
+        
+        # Check if user already exists
+        if User.query.filter_by(username=username).first():
+            flash(f'Username {username} already exists', 'error')
+            return render_template('register.html')
+        
+        if User.query.filter_by(email=email).first():
+            flash(f'Email {email} already exists', 'error')
+            return render_template('register.html')
+        
+        # Create new user
+        user = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name
+        )
+        user.set_password(password)
+        
+        # Assign default viewer role
+        default_role = Role.query.filter_by(name='Viewer').first()
+        if default_role:
+            user.role = default_role
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        flash('Registration successful! You can now log in.', 'success')
+        return redirect(url_for('auth.login'))
+    
+    return render_template('register.html')
+
 @auth_bp.route('/logout')
 @login_required
 def logout():

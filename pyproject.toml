@@ -17,4 +17,5 @@ dependencies = [
     "xlsxwriter>=3.2.3",
     "python-dateutil>=2.9.0.post0",
     "markupsafe>=3.0.2",
+    "flask-wtf>=1.2.2",
 ]
