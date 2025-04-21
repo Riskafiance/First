@@ -25,6 +25,28 @@ class Role(db.Model):
     
     def __repr__(self):
         return f'<Role {self.name}>'
+        
+    @staticmethod
+    def insert_roles():
+        """Insert default roles"""
+        roles = {
+            'Viewer': Role.CAN_VIEW,
+            'Creator': Role.CAN_VIEW | Role.CAN_CREATE,
+            'Editor': Role.CAN_VIEW | Role.CAN_CREATE | Role.CAN_EDIT,
+            'Manager': Role.CAN_VIEW | Role.CAN_CREATE | Role.CAN_EDIT | Role.CAN_DELETE | Role.CAN_APPROVE,
+            'Admin': Role.CAN_VIEW | Role.CAN_CREATE | Role.CAN_EDIT | Role.CAN_DELETE | Role.CAN_APPROVE | Role.CAN_ADMIN
+        }
+        
+        for role_name, permissions in roles.items():
+            # Check if role exists
+            role = Role.query.filter_by(name=role_name).first()
+            if role is None:
+                role = Role(name=role_name, permissions=permissions)
+            else:
+                role.permissions = permissions
+            db.session.add(role)
+        
+        db.session.commit()
 
 # User model
 class User(UserMixin, db.Model):
@@ -48,6 +70,30 @@ class User(UserMixin, db.Model):
         if self.role:
             return (self.role.permissions & permission) == permission
         return False
+        
+    def get_permissions_list(self):
+        """Returns a list of permission names the user has"""
+        permissions = []
+        
+        if self.has_permission(Role.CAN_VIEW):
+            permissions.append("View Records")
+            
+        if self.has_permission(Role.CAN_CREATE):
+            permissions.append("Create Records")
+            
+        if self.has_permission(Role.CAN_EDIT):
+            permissions.append("Edit Records")
+            
+        if self.has_permission(Role.CAN_DELETE):
+            permissions.append("Delete Records")
+            
+        if self.has_permission(Role.CAN_APPROVE):
+            permissions.append("Approve Records")
+            
+        if self.has_permission(Role.CAN_ADMIN):
+            permissions.append("Administrator")
+            
+        return permissions
     
     def __repr__(self):
         return f'<User {self.username}>'

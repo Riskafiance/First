@@ -876,7 +876,7 @@ def generate_general_ledger(start_date=None, end_date=None, account_ids=None, ac
             entry_data = {
                 'entry_id': entry.id,
                 'entry_date': entry.entry_date,
-                'reference': entry.reference_number or f"JE-{entry.id}",
+                'reference': entry.reference or f"JE-{entry.id}",
                 'entry_description': entry.description,
                 'account_code': account.code,
                 'item_description': item.description,
