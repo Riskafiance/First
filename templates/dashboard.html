@@ -15,56 +15,84 @@
         </div>
     </div>
     
-    <!-- Permissions Card -->
-    <div class="col-md-6 col-xl-4 mb-4">
+    <!-- Financial Overview Cards -->
+    <div class="col-md-6 col-xl-3 mb-4">
+        <div class="card bg-primary text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50">Current Month Income</h6>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_income) }}</h3>
+                    </div>
+                    <div class="rounded-circle bg-white bg-opacity-25 p-3">
+                        <i class="fas fa-money-bill-wave fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-xl-3 mb-4">
+        <div class="card bg-danger text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50">Current Month Expenses</h6>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_expense) }}</h3>
+                    </div>
+                    <div class="rounded-circle bg-white bg-opacity-25 p-3">
+                        <i class="fas fa-file-invoice-dollar fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-xl-3 mb-4">
+        <div class="card bg-success text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50">Year to Date Income</h6>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_income) }}</h3>
+                    </div>
+                    <div class="rounded-circle bg-white bg-opacity-25 p-3">
+                        <i class="fas fa-chart-line fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 col-xl-3 mb-4">
+        <div class="card bg-info text-white h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-white-50">Year to Date Expenses</h6>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_expense) }}</h3>
+                    </div>
+                    <div class="rounded-circle bg-white bg-opacity-25 p-3">
+                        <i class="fas fa-dollar-sign fa-2x text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Income vs Expenses Chart -->
+    <div class="col-xl-8 mb-4">
         <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title">Your Permissions</h5>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Income vs Expenses (Last 6 Months)</h5>
             </div>
             <div class="card-body">
-                <ul class="list-group">
-                    {% for permission in permissions %}
-                    <li class="list-group-item d-flex align-items-center">
-                        <i class="fas fa-check-circle text-success me-2"></i>
-                        {{ permission }}
-                    </li>
-                    {% else %}
-                    <li class="list-group-item text-muted">No permissions assigned</li>
-                    {% endfor %}
-                </ul>
-                
-                <div class="mt-3">
-                    <a href="{{ url_for('profile.view_profile') }}" class="btn btn-outline-primary btn-sm">
-                        <i class="fas fa-user me-1"></i> View Profile
-                    </a>
-                </div>
+                <canvas id="incomeExpensesChart" height="250"></canvas>
             </div>
         </div>
     </div>
     
-    <!-- Admin Card (only visible to admins) -->
-    {% if current_user.has_permission(Role.CAN_ADMIN) %}
-    <div class="col-md-6 col-xl-4 mb-4">
-        <div class="card h-100 border-primary">
-            <div class="card-header">
-                <h5 class="card-title">Administrator Tools</h5>
-            </div>
-            <div class="card-body">
-                <p>As an administrator, you have full access to manage users and roles.</p>
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('auth.user_management') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-users-cog me-2"></i> User Management
-                    </a>
-                    <a href="{{ url_for('auth.role_management') }}" class="btn btn-outline-primary">
-                        <i class="fas fa-user-shield me-2"></i> Role Management
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-    
-    <!-- Quick Links -->
+    <!-- Quick Links Card -->
     <div class="col-md-6 col-xl-4 mb-4">
         <div class="card h-100">
             <div class="card-header">
@@ -92,11 +120,259 @@
             </div>
         </div>
     </div>
+    
+    <!-- Recent Invoices Table -->
+    <div class="col-md-6 col-xl-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Invoices</h5>
+                <a href="{{ url_for('invoices.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice #</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in recent_invoices %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}">{{ invoice.invoice_number }}</a>
+                                </td>
+                                <td>{{ invoice.customer.name if invoice.customer else 'N/A' }}</td>
+                                <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
+                                <td>${{ "{:,.2f}".format(invoice.total_amount) }}</td>
+                                <td>
+                                    {% if invoice.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                    {% elif invoice.status == 'overdue' %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No recent invoices found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Expenses Table -->
+    <div class="col-md-6 col-xl-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Expenses</h5>
+                <a href="{{ url_for('expenses.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Expense #</th>
+                                <th>Vendor</th>
+                                <th>Date</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in recent_expenses %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('expenses.view', expense_id=expense.id) }}">{{ expense.expense_number }}</a>
+                                </td>
+                                <td>{{ expense.vendor.name if expense.vendor else 'N/A' }}</td>
+                                <td>{{ expense.date.strftime('%Y-%m-%d') }}</td>
+                                <td>${{ "{:,.2f}".format(expense.total_amount) }}</td>
+                                <td>
+                                    {% if expense.status == 'paid' %}
+                                    <span class="badge bg-success">Paid</span>
+                                    {% elif expense.status == 'overdue' %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No recent expenses found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Journal Entries -->
+    <div class="col-md-12 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Journal Entries</h5>
+                <a href="{{ url_for('journals.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Reference</th>
+                                <th>Description</th>
+                                <th>Debit Account</th>
+                                <th>Credit Account</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in recent_journals %}
+                            <tr>
+                                <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ entry.reference }}</td>
+                                <td>{{ entry.description }}</td>
+                                <td>{{ entry.debit_account.name if entry.debit_account else 'N/A' }}</td>
+                                <td>{{ entry.credit_account.name if entry.credit_account else 'N/A' }}</td>
+                                <td>${{ "{:,.2f}".format(entry.amount) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No recent journal entries found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Card (only visible to admins) -->
+    {% if current_user.has_permission(Role.CAN_ADMIN) %}
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header">
+                <h5 class="card-title">Administrator Tools</h5>
+            </div>
+            <div class="card-body">
+                <p>As an administrator, you have full access to manage users and roles.</p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.user_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-users-cog me-2"></i> User Management
+                    </a>
+                    <a href="{{ url_for('auth.role_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-shield me-2"></i> Role Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Permissions Card -->
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Your Permissions</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for permission in permissions %}
+                    <li class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        {{ permission }}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No permissions assigned</li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('profile.view_profile') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user me-1"></i> View Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+<!-- Include Chart.js for the income vs expenses chart -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Dashboard specific scripts can be added here
+document.addEventListener('DOMContentLoaded', function() {
+    // Income vs Expenses Chart
+    var ctx = document.getElementById('incomeExpensesChart').getContext('2d');
+    var incomeExpensesChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: {{ months|tojson }},
+            datasets: [
+                {
+                    label: 'Income',
+                    data: {{ income_data|tojson }},
+                    backgroundColor: 'rgba(40, 167, 69, 0.7)',
+                    borderColor: 'rgba(40, 167, 69, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Expenses',
+                    data: {{ expense_data|tojson }},
+                    backgroundColor: 'rgba(220, 53, 69, 0.7)',
+                    borderColor: 'rgba(220, 53, 69, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            var label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += '$' + context.parsed.y.toLocaleString();
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
 </script>
 {% endblock %}
