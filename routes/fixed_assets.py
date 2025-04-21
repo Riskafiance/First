@@ -1,12 +1,14 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
-from datetime import datetime, date
+from datetime import datetime, date as date_class
 from sqlalchemy import func, asc, desc
 from sqlalchemy.exc import SQLAlchemyError
 from decimal import Decimal
 import json
 
 from app import db
+# Use date_class to avoid any confusion with local variables
+date = date_class
 from models import (
     Account, AccountType, JournalEntry, JournalItem, Entity, EntityType,
     AssetCategory, AssetLocation, AssetStatus, AssetCondition, FixedAsset,
@@ -1078,7 +1080,8 @@ def transfer_asset(asset_id):
                          asset=asset,
                          current_location=current_location,
                          locations=locations,
-                         current_date=date.today().strftime('%Y-%m-%d'))
+                         current_date=date.today().strftime('%Y-%m-%d'),
+                         format_currency=format_currency)
 
 # Set up blueprints and routes
 def setup_assets_blueprint(app):
