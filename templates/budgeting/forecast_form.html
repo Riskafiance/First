@@ -1,0 +1,78 @@
+{% extends 'layout.html' %}
+
+{% block title %}Create Forecast{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Create Financial Forecast</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.forecasts') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Forecasts
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Forecast Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Forecast Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                        <div class="form-text">A descriptive name for this forecast, e.g. "Revenue Forecast 2025-2026"</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                            <input type="date" id="start_date" name="start_date" class="form-control" value="{{ today.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">End Date <span class="text-danger">*</span></label>
+                            <input type="date" id="end_date" name="end_date" class="form-control" value="{{ (today.replace(year=today.year+1)).strftime('%Y-%m-%d') }}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="period_type_id" class="form-label">Period Type <span class="text-danger">*</span></label>
+                        <select id="period_type_id" name="period_type_id" class="form-select" required>
+                            {% for period_type in period_types %}
+                            <option value="{{ period_type.id }}">{{ period_type.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">
+                            <ul class="small ps-3 mb-0">
+                                <li>Monthly: 12 periods per year</li>
+                                <li>Quarterly: 4 periods per year</li>
+                                <li>Annual: 1 period for the entire year</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>After creating the forecast, you will be able to add accounts and set forecast amounts for each period.
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <a href="{{ url_for('budgeting.forecasts') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Forecast</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
