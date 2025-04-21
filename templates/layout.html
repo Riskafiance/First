@@ -230,7 +230,7 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="salesMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('customers.list') }}" class="nav-link {{ 'active' if request.endpoint == 'customers.list' }}">
+                            <a href="{{ url_for('entities.customers') }}" class="nav-link {{ 'active' if request.endpoint == 'entities.customers' }}">
                                 <i class="fas fa-users"></i> Customers
                             </a>
                         </li>
@@ -252,7 +252,7 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="purchasesMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('vendors.list') }}" class="nav-link {{ 'active' if request.endpoint == 'vendors.list' }}">
+                            <a href="{{ url_for('entities.vendors') }}" class="nav-link {{ 'active' if request.endpoint == 'entities.vendors' }}">
                                 <i class="fas fa-building"></i> Vendors
                             </a>
                         </li>
