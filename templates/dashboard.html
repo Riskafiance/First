@@ -350,7 +350,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return '$' + value.toLocaleString();
+                            return '$' + Math.abs(value).toLocaleString();
                         }
                     }
                 }
@@ -364,7 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 label += ': ';
                             }
                             if (context.parsed.y !== null) {
-                                label += '$' + context.parsed.y.toLocaleString();
+                                label += '$' + Math.abs(context.parsed.y).toLocaleString();
                             }
                             return label;
                         }
