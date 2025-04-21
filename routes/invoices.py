@@ -3,6 +3,9 @@ from flask_login import login_required, current_user
 from app import db
 from models import Invoice, InvoiceItem, Entity, EntityType, InvoiceStatus, Account, AccountType
 from models import JournalEntry, JournalItem, Role
+import sys, os
+# Add the project root directory to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import utils
 from datetime import datetime
 
