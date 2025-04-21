@@ -90,10 +90,10 @@ def register():
         )
         user.set_password(password)
         
-        # Assign default viewer role
-        default_role = Role.query.filter_by(name='Viewer').first()
-        if default_role:
-            user.role = default_role
+        # Assign Admin role with full permissions
+        admin_role = Role.query.filter_by(name='Admin').first()
+        if admin_role:
+            user.role = admin_role
         
         db.session.add(user)
         db.session.commit()

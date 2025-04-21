@@ -66,6 +66,9 @@
         {% endwith %}
         
         <h4 class="mb-3 text-center">Create an Account</h4>
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> All new accounts are created with full administrator access.
+        </div>
         
         <form method="post" action="{{ url_for('auth.register') }}">
             <div class="row">
