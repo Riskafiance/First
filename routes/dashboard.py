@@ -50,10 +50,10 @@ def index():
     # Get monthly trends data for the past 6 months
     monthly_trends = get_monthly_trends(6)
     
-    # Extract data for the chart
+    # Extract data for the chart - use absolute values to avoid minus signs
     months = [month_data['month'].split()[0] for month_data in monthly_trends]  # Just show the month name, not the year
-    income_data = [month_data['income'] for month_data in monthly_trends]
-    expense_data = [month_data['expenses'] for month_data in monthly_trends]
+    income_data = [abs(month_data['income']) for month_data in monthly_trends]
+    expense_data = [abs(month_data['expenses']) for month_data in monthly_trends]
     
     # Ensure we have real data in the dashboard financials
     current_month_income = current_month_summary['income']

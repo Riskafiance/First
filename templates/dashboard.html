@@ -22,7 +22,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-white-50">Current Month Income</h6>
-                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_income) }}</h3>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_income|abs) }}</h3>
                     </div>
                     <div class="rounded-circle bg-white bg-opacity-25 p-3">
                         <i class="fas fa-money-bill-wave fa-2x text-white"></i>
@@ -38,7 +38,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-white-50">Current Month Expenses</h6>
-                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_expense) }}</h3>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(current_month_expense|abs) }}</h3>
                     </div>
                     <div class="rounded-circle bg-white bg-opacity-25 p-3">
                         <i class="fas fa-file-invoice-dollar fa-2x text-white"></i>
@@ -54,7 +54,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-white-50">Year to Date Income</h6>
-                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_income) }}</h3>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_income|abs) }}</h3>
                     </div>
                     <div class="rounded-circle bg-white bg-opacity-25 p-3">
                         <i class="fas fa-chart-line fa-2x text-white"></i>
@@ -70,7 +70,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="text-white-50">Year to Date Expenses</h6>
-                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_expense) }}</h3>
+                        <h3 class="mb-0">${{ "{:,.2f}".format(ytd_expense|abs) }}</h3>
                     </div>
                     <div class="rounded-circle bg-white bg-opacity-25 p-3">
                         <i class="fas fa-dollar-sign fa-2x text-white"></i>
