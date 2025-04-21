@@ -1,0 +1,206 @@
+{% extends 'layout.html' %}
+
+{% block title %}Budget Variance Report{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Budget Variance Report</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+        </a>
+        <a href="{{ url_for('budgeting.budgets') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i> All Budgets
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="budget_id" class="form-label">Budget</label>
+                <select name="budget_id" id="budget_id" class="form-select" required>
+                    <option value="">Select Budget</option>
+                    {% for b in budgets %}
+                    <option value="{{ b.id }}" {% if selected_budget and b.id == selected_budget.id %}selected{% endif %}>{{ b.name }} ({{ b.year }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control" value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control" value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}">
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if variance_data %}
+<!-- Summary Card -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="card-title mb-0">Variance Summary - {{ variance_data.budget.name }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Budget:</th>
+                                <td>{{ variance_data.budget.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Year:</th>
+                                <td>{{ variance_data.budget.year }}</td>
+                            </tr>
+                            <tr>
+                                <th>Period Type:</th>
+                                <td>{{ variance_data.budget.period_type.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>Report Period:</th>
+                                <td>{{ start_date.strftime('%b %d, %Y') }} to {{ end_date.strftime('%b %d, %Y') }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="row text-center">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <h3 class="mb-0">${{ "{:,.2f}".format(variance_data.summary.budget_total) }}</h3>
+                                <div class="small text-muted">Budgeted</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <h3 class="mb-0">${{ "{:,.2f}".format(variance_data.summary.actual_total) }}</h3>
+                                <div class="small text-muted">Actual</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <div class="card {% if variance_data.summary.variance_total >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                            <div class="card-body p-3">
+                                <h3 class="mb-0">${{ "{:,.2f}".format(variance_data.summary.variance_total) }}</h3>
+                                <div class="small">Variance</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    {% if variance_data.summary.variance_total >= 0 %}
+                    <span>Favorable variance of <strong>${{ "{:,.2f}".format(variance_data.summary.variance_total) }}</strong> ({{ "%.1f"|format(variance_data.summary.variance_percent) }}%) compared to budget.</span>
+                    {% else %}
+                    <span>Unfavorable variance of <strong>${{ "{:,.2f}".format(variance_data.summary.variance_total|abs) }}</strong> ({{ "%.1f"|format(variance_data.summary.variance_percent|abs) }}%) compared to budget.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Variance Details Table -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Variance Details by Account</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        <th class="text-end">Budgeted</th>
+                        <th class="text-end">Actual</th>
+                        <th class="text-end">Variance</th>
+                        <th class="text-end">Variance %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account_data in variance_data.accounts %}
+                    <tr>
+                        <td>
+                            <div>{{ account_data.account.code }} - {{ account_data.account.name }}</div>
+                            <div><span class="badge bg-secondary">{{ account_data.account.account_type.name }}</span></div>
+                        </td>
+                        <td class="text-end">${{ "{:,.2f}".format(account_data.budget_total) }}</td>
+                        <td class="text-end">${{ "{:,.2f}".format(account_data.actual_total) }}</td>
+                        <td class="text-end {% if account_data.variance_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if account_data.variance_total >= 0 %}+{% endif %}${{ "{:,.2f}".format(account_data.variance_total) }}
+                        </td>
+                        <td class="text-end {% if account_data.variance_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if account_data.variance_percent >= 0 %}+{% endif %}{{ "%.1f"|format(account_data.variance_percent) }}%
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-chart-bar fa-3x mb-3"></i>
+                                <p>No variance data found for the selected period.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if variance_data.accounts %}
+                <tfoot>
+                    <tr class="table-dark">
+                        <th>Total</th>
+                        <th class="text-end">${{ "{:,.2f}".format(variance_data.summary.budget_total) }}</th>
+                        <th class="text-end">${{ "{:,.2f}".format(variance_data.summary.actual_total) }}</th>
+                        <th class="text-end {% if variance_data.summary.variance_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if variance_data.summary.variance_total >= 0 %}+{% endif %}${{ "{:,.2f}".format(variance_data.summary.variance_total) }}
+                        </th>
+                        <th class="text-end {% if variance_data.summary.variance_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if variance_data.summary.variance_percent >= 0 %}+{% endif %}{{ "%.1f"|format(variance_data.summary.variance_percent) }}%
+                        </th>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="card shadow-sm">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-chart-bar fa-4x mb-3 text-muted"></i>
+        <h3 class="h4 mb-3">Variance Report</h3>
+        <p class="mb-4 text-muted">Select a budget from the dropdown above to view the variance report.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -61,6 +61,7 @@ from routes.entities import entities_bp
 from routes.inventory import inventory_bp
 from routes.reports import reports_bp
 from routes.fixed_assets import setup_assets_blueprint
+from routes.budgeting import budgeting_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(dashboard_bp)
@@ -71,6 +72,7 @@ app.register_blueprint(expenses_bp)
 app.register_blueprint(entities_bp)
 app.register_blueprint(inventory_bp, url_prefix='/inventory')
 app.register_blueprint(reports_bp)
+app.register_blueprint(budgeting_bp, url_prefix='/budgeting')
 
 # Setup fixed assets blueprint
 setup_assets_blueprint(app)

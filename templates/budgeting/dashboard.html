@@ -1,0 +1,214 @@
+{% extends 'layout.html' %}
+
+{% block title %}Budgeting Dashboard{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Budgeting &amp; Financial Planning</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.budgets') }}" class="btn btn-outline-primary">
+            <i class="fas fa-list me-1"></i> All Budgets
+        </a>
+        <a href="{{ url_for('budgeting.create_budget') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Budget
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Summary Cards -->
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Budget Summary
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="display-4 me-3">{{ budget_count }}</div>
+                    <div>
+                        <h6 class="m-0 text-muted">Total Budgets</h6>
+                        <small>Click to view all budgets</small>
+                    </div>
+                </div>
+                <hr>
+                <h6>Active Budgets</h6>
+                <ul class="list-group list-group-flush">
+                    {% for budget in active_budgets %}
+                    <li class="list-group-item px-0">
+                        <a href="{{ url_for('budgeting.view_budget', budget_id=budget.id) }}" class="d-flex justify-content-between align-items-center text-decoration-none">
+                            <span>{{ budget.name }}</span>
+                            <span class="badge bg-primary rounded-pill">{{ budget.year }}</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item px-0 text-muted">No active budgets found</li>
+                    {% endfor %}
+                </ul>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('budgeting.create_budget') }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> Create Budget
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Forecasting
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="display-4 me-3">{{ forecast_count }}</div>
+                    <div>
+                        <h6 class="m-0 text-muted">Total Forecasts</h6>
+                        <small>Click to view all forecasts</small>
+                    </div>
+                </div>
+                <hr>
+                <h6>Financial Forecasting</h6>
+                <p class="text-muted">Create financial forecasts based on historical data and growth projections.</p>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('budgeting.forecasts') }}" class="btn btn-sm btn-outline-info me-2">
+                        <i class="fas fa-list me-1"></i> View Forecasts
+                    </a>
+                    <a href="{{ url_for('budgeting.create_forecast') }}" class="btn btn-sm btn-info">
+                        <i class="fas fa-plus me-1"></i> New Forecast
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tasks me-2"></i>Reports
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Budget vs Actual</h6>
+                <p class="text-muted">Compare budgeted amounts with actual financial data to identify variances.</p>
+                <a href="{{ url_for('budgeting.variance_report') }}" class="btn btn-sm btn-outline-success w-100 mb-3">
+                    <i class="fas fa-chart-bar me-1"></i> Variance Report
+                </a>
+                
+                <h6>Financial Planning</h6>
+                <p class="text-muted">Tools to help with financial planning and future projections.</p>
+                <a href="#" class="btn btn-sm btn-outline-success w-100 disabled">
+                    <i class="fas fa-chart-line me-1"></i> Growth Analysis
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Budget vs Actual Summary -->
+{% if latest_variance %}
+<div class="row">
+    <div class="col-12 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-balance-scale me-2"></i>Current Budget vs Actual
+                </h5>
+                <a href="{{ url_for('budgeting.variance_report', budget_id=latest_variance.budget.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt me-1"></i> Detailed Report
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card bg-light">
+                            <div class="card-body p-3">
+                                <h6 class="card-title">{{ latest_variance.budget.name }}</h6>
+                                <div class="text-muted small">{{ latest_variance.budget.start_date.strftime('%b %d, %Y') }} to {{ latest_variance.budget.end_date.strftime('%b %d, %Y') }}</div>
+                                <div class="mt-2">
+                                    <span class="badge bg-primary">{{ latest_variance.budget.period_type.name }}</span>
+                                    <span class="badge bg-secondary">{{ latest_variance.budget.year }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8">
+                        <div class="row text-center">
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body p-3">
+                                        <h3 class="mb-0">${{ "{:,.2f}".format(latest_variance.summary.budget_total) }}</h3>
+                                        <div class="small">Budgeted</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body p-3">
+                                        <h3 class="mb-0">${{ "{:,.2f}".format(latest_variance.summary.actual_total) }}</h3>
+                                        <div class="small">Actual</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <div class="card {% if latest_variance.summary.variance_total >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                                    <div class="card-body p-3">
+                                        <h3 class="mb-0">${{ "{:,.2f}".format(latest_variance.summary.variance_total) }}</h3>
+                                        <div class="small">Variance</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Top 5 Variances -->
+                {% if latest_variance.accounts %}
+                <div class="mt-4">
+                    <h6>Top Variances</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Account</th>
+                                    <th class="text-end">Budget</th>
+                                    <th class="text-end">Actual</th>
+                                    <th class="text-end">Variance</th>
+                                    <th class="text-end">Variance %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for account_data in latest_variance.accounts[:5] %}
+                                <tr>
+                                    <td>{{ account_data.account.code }} - {{ account_data.account.name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(account_data.budget_total) }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(account_data.actual_total) }}</td>
+                                    <td class="text-end {% if account_data.variance_total >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if account_data.variance_total >= 0 %}+{% endif %}${{ "{:,.2f}".format(account_data.variance_total) }}
+                                    </td>
+                                    <td class="text-end {% if account_data.variance_percent >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if account_data.variance_percent >= 0 %}+{% endif %}{{ "%.1f"|format(account_data.variance_percent) }}%
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

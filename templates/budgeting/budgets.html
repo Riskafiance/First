@@ -1,0 +1,149 @@
+{% extends 'layout.html' %}
+
+{% block title %}Budgets{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Budgets</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+        </a>
+        <a href="{{ url_for('budgeting.create_budget') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Budget
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="year" class="form-label">Budget Year</label>
+                <select name="year" id="year" class="form-select">
+                    <option value="">All Years</option>
+                    {% for year in years %}
+                    <option value="{{ year }}" {% if year|string == current_year|string %}selected{% endif %}>{{ year }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="is_active" class="form-label">Status</label>
+                <select name="is_active" id="is_active" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if request.args.get('is_active') == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.args.get('is_active') == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i> Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Budgets Table -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Budget List</h5>
+        <span class="badge bg-primary">{{ budgets|length }} budgets</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Year</th>
+                        <th>Period Type</th>
+                        <th>Date Range</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in budgets %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('budgeting.view_budget', budget_id=budget.id) }}">
+                                {{ budget.name }}
+                            </a>
+                        </td>
+                        <td>{{ budget.year }}</td>
+                        <td>{{ budget.period_type.name }}</td>
+                        <td>{{ budget.start_date.strftime('%b %d, %Y') }} to {{ budget.end_date.strftime('%b %d, %Y') }}</td>
+                        <td>
+                            {% if budget.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('budgeting.view_budget', budget_id=budget.id) }}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('budgeting.edit_budget', budget_id=budget.id) }}" class="btn btn-outline-secondary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{{ url_for('budgeting.variance_report', budget_id=budget.id) }}" class="btn btn-outline-info" title="Variance Report">
+                                    <i class="fas fa-chart-bar"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                        data-bs-toggle="modal" data-bs-target="#deleteBudgetModal{{ budget.id }}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="deleteBudgetModal{{ budget.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Confirm Delete</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body text-start">
+                                            <p>Are you sure you want to delete the budget <strong>{{ budget.name }}</strong>?</p>
+                                            <p class="text-danger">This action cannot be undone. All budget items will be permanently deleted.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <form action="{{ url_for('budgeting.delete_budget', budget_id=budget.id) }}" method="post">
+                                                <button type="submit" class="btn btn-danger">Delete Budget</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                <p>No budgets found with the current filters.</p>
+                                <a href="{{ url_for('budgeting.create_budget') }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Create New Budget
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

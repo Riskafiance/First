@@ -1,0 +1,241 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ budget.name }}{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">{{ budget.name }}</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.budgets') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Budgets
+        </a>
+        <a href="{{ url_for('budgeting.edit_budget', budget_id=budget.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-1"></i> Edit Budget
+        </a>
+        <a href="{{ url_for('budgeting.variance_report', budget_id=budget.id) }}" class="btn btn-primary">
+            <i class="fas fa-chart-bar me-1"></i> Variance Report
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Budget Summary Card -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Budget Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-2">
+                    <div class="col-4 text-muted">Year:</div>
+                    <div class="col-8">{{ budget.year }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4 text-muted">Period Type:</div>
+                    <div class="col-8">{{ budget.period_type.name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4 text-muted">Date Range:</div>
+                    <div class="col-8">{{ budget.start_date.strftime('%b %d, %Y') }} to {{ budget.end_date.strftime('%b %d, %Y') }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4 text-muted">Status:</div>
+                    <div class="col-8">
+                        {% if budget.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-4 text-muted">Created:</div>
+                    <div class="col-8">{{ budget.created_at.strftime('%b %d, %Y %H:%M') }}</div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-4 text-muted">Description:</div>
+                    <div class="col-8">{{ budget.description or 'No description provided' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if variance_data %}
+    <div class="col-md-6">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Variance Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3 text-center">
+                        <div class="p-3 rounded bg-light">
+                            <div class="h4 mb-0">${{ '{:,.2f}'.format(variance_data.summary.budget_total) }}</div>
+                            <div class="small text-muted">Budgeted</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3 text-center">
+                        <div class="p-3 rounded bg-light">
+                            <div class="h4 mb-0">${{ '{:,.2f}'.format(variance_data.summary.actual_total) }}</div>
+                            <div class="small text-muted">Actual</div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3 text-center">
+                        <div class="p-3 rounded {% if variance_data.summary.variance_total >= 0 %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                            <div class="h4 mb-0">${{ '{:,.2f}'.format(variance_data.summary.variance_total) }}</div>
+                            <div class="small">Variance</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-2">
+                    <a href="{{ url_for('budgeting.variance_report', budget_id=budget.id) }}" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-chart-bar me-1"></i> View Detailed Report
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Budget Versions -->
+{% if versions %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Budget Versions</h5>
+                <span class="badge bg-primary">{{ versions|length }} versions</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Name</th>
+                                <th>Created Date</th>
+                                <th>Created By</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for version in versions %}
+                            <tr>
+                                <td>{{ version.version_number }}</td>
+                                <td>{{ version.version_name }}</td>
+                                <td>{{ version.created_at.strftime('%b %d, %Y %H:%M') }}</td>
+                                <td>{{ version.created_by.username if version.created_by else 'System' }}</td>
+                                <td>
+                                    {% if version.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ version.notes }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Budget Details -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Budget Details</h5>
+        <a href="{{ url_for('budgeting.edit_budget', budget_id=budget.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-edit me-1"></i> Edit Budget Items
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Account</th>
+                        {% for period in periods %}
+                        <th class="text-end">{{ period.name }}</th>
+                        {% endfor %}
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account_id, data in budget_data.items() %}
+                    <tr>
+                        <td>{{ data.account.code }} - {{ data.account.name }}</td>
+                        {% for period in periods %}
+                        <td class="text-end">
+                            {% if period.period in data.periods %}
+                            ${{ '{:,.2f}'.format(data.periods[period.period]) }}
+                            {% else %}
+                            $0.00
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="text-end fw-bold">
+                            {% set total = 0 %}
+                            {% for period_amount in data.periods.values() %}
+                            {% set total = total + period_amount %}
+                            {% endfor %}
+                            ${{ '{:,.2f}'.format(total) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ periods|length + 2 }}" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="fas fa-calculator fa-3x mb-3"></i>
+                                <p>No budget items found.</p>
+                                <a href="{{ url_for('budgeting.edit_budget', budget_id=budget.id) }}" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-plus me-1"></i> Add Budget Items
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if budget_data %}
+                <tfoot>
+                    <tr class="table-light">
+                        <th>Total</th>
+                        {% for period in periods %}
+                        <th class="text-end">
+                            {% set period_total = 0 %}
+                            {% for account_id, data in budget_data.items() %}
+                            {% if period.period in data.periods %}
+                            {% set period_total = period_total + data.periods[period.period] %}
+                            {% endif %}
+                            {% endfor %}
+                            ${{ '{:,.2f}'.format(period_total) }}
+                        </th>
+                        {% endfor %}
+                        <th class="text-end">
+                            {% set grand_total = 0 %}
+                            {% for account_id, data in budget_data.items() %}
+                            {% for period_amount in data.periods.values() %}
+                            {% set grand_total = grand_total + period_amount %}
+                            {% endfor %}
+                            {% endfor %}
+                            ${{ '{:,.2f}'.format(grand_total) }}
+                        </th>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

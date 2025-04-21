@@ -1,0 +1,73 @@
+{% extends 'layout.html' %}
+
+{% block title %}Create Budget{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Create Budget</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.budgets') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Budgets
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Budget Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Budget Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="form-control" required>
+                        <div class="form-text">A descriptive name for this budget, e.g. "Annual Operating Budget 2025"</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="year" class="form-label">Budget Year <span class="text-danger">*</span></label>
+                            <input type="number" id="year" name="year" class="form-control" value="{{ current_year }}" min="2000" max="2100" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="period_type_id" class="form-label">Period Type <span class="text-danger">*</span></label>
+                            <select id="period_type_id" name="period_type_id" class="form-select" required>
+                                {% for period_type in period_types %}
+                                <option value="{{ period_type.id }}">{{ period_type.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <ul class="small ps-3 mb-0">
+                                    <li>Monthly: 12 periods per year (January-December)</li>
+                                    <li>Quarterly: 4 periods per year (Q1-Q4)</li>
+                                    <li>Annual: 1 period for the entire year</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>After creating the budget, you will be able to add accounts and set budget amounts for each period.
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <a href="{{ url_for('budgeting.budgets') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Budget</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
