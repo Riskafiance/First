@@ -19,7 +19,7 @@ inventory_bp = Blueprint('inventory', __name__)
 def dashboard():
     """Inventory dashboard"""
     # Get inventory overview
-    inventory_value = utils.get_inventory_value()
+    inventory_value = core_utils.get_inventory_value()
     
     # Get product categories
     categories = ProductCategory.query.order_by(ProductCategory.name).all()
@@ -46,7 +46,7 @@ def dashboard():
     category_counts = sorted(category_counts, key=lambda x: x[1], reverse=True)
     
     # Get low stock products
-    low_stock = utils.get_low_stock_products()
+    low_stock = core_utils.get_low_stock_products()
     
     # Get purchase order status counts
     statuses = PurchaseOrderStatus.query.all()
@@ -394,7 +394,7 @@ def create_product():
         
         # Generate SKU if not provided
         if not sku:
-            sku = utils.generate_product_sku(name, category_id)
+            sku = core_utils.generate_product_sku()
         
         # Validate SKU uniqueness
         existing_product = Product.query.filter_by(sku=sku).first()
@@ -776,18 +776,23 @@ def adjust_inventory(product_id):
             db.session.add_all(journal_items)
         
         # Record inventory transaction
-        utils.record_inventory_transaction(
-            product_id=product.id,
-            quantity=quantity,
-            transaction_type=transaction_type,
-            transaction_type_id=adjustment_type_obj.id,
-            unit_price=unit_price,
-            location=location,
-            reference_type='Adjustment',
-            notes=reason,
-            journal_entry_id=journal_entry.id if journal_entry else None,
-            created_by_id=current_user.id
-        )
+        try:
+            core_utils.record_inventory_transaction(
+                product_id=product.id,
+                quantity=quantity,
+                transaction_type=transaction_type,
+                transaction_type_id=adjustment_type_obj.id,
+                unit_price=unit_price,
+                location=location,
+                reference_type='Adjustment',
+                notes=reason,
+                journal_entry_id=journal_entry.id if journal_entry else None,
+                created_by_id=current_user.id
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error recording inventory transaction: {str(e)}', 'danger')
+            return redirect(url_for('inventory.view_product', product_id=product_id))
         
         flash('Inventory adjustment recorded successfully.', 'success')
         return redirect(url_for('inventory.view_product', product_id=product_id))
@@ -971,7 +976,7 @@ def export_stock_valuation():
 def low_stock_report():
     """Low stock report"""
     # Get low stock products
-    low_stock = utils.get_low_stock_products()
+    low_stock = core_utils.get_low_stock_products()
     
     # Get warehouses for filter
     warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
@@ -1110,7 +1115,7 @@ def create_purchase_order():
             db.session.commit()
         
         # Generate PO number
-        po_number = utils.generate_po_number()
+        po_number = core_utils.generate_po_number()
         
         # Create purchase order
         purchase_order = PurchaseOrder(
