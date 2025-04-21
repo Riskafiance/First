@@ -885,3 +885,75 @@ class PurchaseOrderItem(db.Model):
     
     def __repr__(self):
         return f'<PurchaseOrderItem {self.id} - {self.product.name}>'
+
+# Bank Reconciliation Models
+class BankAccount(db.Model):
+    """Model for bank accounts that can be reconciled"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    account_number = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.String(255))
+    gl_account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    currency = db.Column(db.String(3), default="USD")
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    gl_account = db.relationship('Account', backref='bank_accounts')
+    statements = db.relationship('BankStatement', backref='bank_account', lazy=True, cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<BankAccount {self.name}>"
+
+class BankStatement(db.Model):
+    """Model for bank statements"""
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_account.id'), nullable=False)
+    statement_date = db.Column(db.Date, nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    beginning_balance = db.Column(db.Numeric(precision=15, scale=2), nullable=False)
+    ending_balance = db.Column(db.Numeric(precision=15, scale=2), nullable=False)
+    is_reconciled = db.Column(db.Boolean, default=False)
+    reconciled_date = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    
+    # Relationships
+    transactions = db.relationship('BankTransaction', backref='statement', lazy=True, cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f"<BankStatement {self.statement_date}>"
+
+class BankTransaction(db.Model):
+    """Model for individual bank transactions from a statement"""
+    id = db.Column(db.Integer, primary_key=True)
+    statement_id = db.Column(db.Integer, db.ForeignKey('bank_statement.id'), nullable=False)
+    transaction_date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    reference = db.Column(db.String(100))
+    amount = db.Column(db.Numeric(precision=15, scale=2), nullable=False)
+    transaction_type = db.Column(db.String(20), nullable=False)  # 'debit' or 'credit'
+    is_reconciled = db.Column(db.Boolean, default=False)
+    reconciled_date = db.Column(db.Date)
+    gl_entry_id = db.Column(db.Integer, db.ForeignKey('journal_entry.id'))
+    
+    # Relationships
+    gl_entry = db.relationship('JournalEntry', backref='bank_transactions')
+    
+    def __repr__(self):
+        return f"<BankTransaction {self.description} {self.amount}>"
+
+class ReconciliationRule(db.Model):
+    """Model for automatic reconciliation rules"""
+    id = db.Column(db.Integer, primary_key=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_account.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    match_pattern = db.Column(db.String(255), nullable=False)
+    gl_account_id = db.Column(db.Integer, db.ForeignKey('account.id'))
+    is_active = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    bank_account = db.relationship('BankAccount', backref='rules')
+    gl_account = db.relationship('Account', backref='reconciliation_rules')
+    
+    def __repr__(self):
+        return f"<ReconciliationRule {self.name}>"

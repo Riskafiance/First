@@ -17,12 +17,12 @@ def index():
     
     # Get recent invoices (last 5)
     recent_invoices = Invoice.query.order_by(
-        desc(Invoice.date)
+        desc(Invoice.issue_date)
     ).limit(5).all()
     
     # Get recent expenses (last 5)
     recent_expenses = Expense.query.order_by(
-        desc(Expense.date)
+        desc(Expense.expense_date)
     ).limit(5).all()
     
     # Get recent journal entries (last 5)
