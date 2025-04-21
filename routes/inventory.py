@@ -536,6 +536,28 @@ def edit_product(product_id):
         revenue_accounts=revenue_accounts
     )
 
+@inventory_bp.route('/products/<int:product_id>/delete', methods=['POST'])
+@login_required
+def delete_product(product_id):
+    """Delete a product"""
+    if not current_user.has_permission(Role.CAN_DELETE):
+        flash('You do not have permission to delete products.', 'danger')
+        return redirect(url_for('inventory.products'))
+    
+    product = Product.query.get_or_404(product_id)
+    
+    # Check if there are inventory transactions using this product
+    transactions = InventoryTransaction.query.filter_by(product_id=product_id).count()
+    if transactions > 0:
+        flash(f'Cannot delete product. It has {transactions} inventory transactions.', 'danger')
+        return redirect(url_for('inventory.products'))
+    
+    db.session.delete(product)
+    db.session.commit()
+    
+    flash('Product deleted successfully.', 'success')
+    return redirect(url_for('inventory.products'))
+
 @inventory_bp.route('/products/<int:product_id>/adjust', methods=['GET', 'POST'])
 @login_required
 def adjust_inventory(product_id):
