@@ -525,6 +525,95 @@ def get_account_balance(account_id, start_date=None, end_date=None):
     
     return balance
 
+def generate_balance_sheet(as_of_date=None):
+    """Generate a balance sheet as of a specific date"""
+    from models import Account, AccountType
+    from decimal import Decimal
+    from datetime import datetime
+    
+    # Use current date if not specified
+    if not as_of_date:
+        as_of_date = datetime.now().date()
+    
+    # Get all accounts
+    asset_accounts = Account.query.join(AccountType).filter(AccountType.name == AccountType.ASSET).order_by(Account.code).all()
+    liability_accounts = Account.query.join(AccountType).filter(AccountType.name == AccountType.LIABILITY).order_by(Account.code).all()
+    equity_accounts = Account.query.join(AccountType).filter(AccountType.name == AccountType.EQUITY).order_by(Account.code).all()
+    
+    # Calculate account balances
+    assets = []
+    total_assets = Decimal('0.00')
+    
+    for account in asset_accounts:
+        balance = get_account_balance(account.id, end_date=as_of_date)
+        if balance != 0:
+            assets.append({
+                'account_code': account.code,
+                'account_name': account.name,
+                'balance': balance
+            })
+            total_assets += balance
+    
+    liabilities = []
+    total_liabilities = Decimal('0.00')
+    
+    for account in liability_accounts:
+        balance = get_account_balance(account.id, end_date=as_of_date)
+        if balance != 0:
+            liabilities.append({
+                'account_code': account.code,
+                'account_name': account.name,
+                'balance': balance
+            })
+            total_liabilities += balance
+    
+    equity_items = []
+    total_equity = Decimal('0.00')
+    
+    for account in equity_accounts:
+        balance = get_account_balance(account.id, end_date=as_of_date)
+        if balance != 0:
+            equity_items.append({
+                'account_code': account.code,
+                'account_name': account.name,
+                'balance': balance
+            })
+            total_equity += balance
+    
+    # Get revenue and expense accounts to calculate retained earnings
+    revenue_accounts = Account.query.join(AccountType).filter(AccountType.name == AccountType.REVENUE).all()
+    expense_accounts = Account.query.join(AccountType).filter(AccountType.name == AccountType.EXPENSE).all()
+    
+    # Calculate net income (for current period)
+    total_revenue = sum(get_account_balance(account.id, end_date=as_of_date) for account in revenue_accounts)
+    total_expenses = sum(get_account_balance(account.id, end_date=as_of_date) for account in expense_accounts)
+    net_income = total_revenue - total_expenses
+    
+    # Add net income to equity if it's not zero
+    if net_income != 0:
+        equity_items.append({
+            'account_code': '',
+            'account_name': 'Current Period Net Income',
+            'balance': net_income
+        })
+        total_equity += net_income
+    
+    # Build the report data structure
+    report_data = {
+        'as_of_date': as_of_date.strftime('%Y-%m-%d'),
+        'assets': assets,
+        'liabilities': liabilities,
+        'equity': equity_items,
+        'totals': {
+            'assets': total_assets,
+            'liabilities': total_liabilities,
+            'equity': total_equity,
+            'liabilities_and_equity': total_liabilities + total_equity
+        }
+    }
+    
+    return report_data
+
 def generate_report_data(data, periods, account_type):
     """Generate report data with the proper structure for budgeting"""
     from decimal import Decimal

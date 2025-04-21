@@ -1,0 +1,179 @@
+{% extends 'layout.html' %}
+
+{% block title %}Balance Sheet | Riska's Finance Enterprise{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h1 class="h3 mb-0">Balance Sheet</h1>
+            <p class="text-muted">As of {{ as_of_date }}</p>
+        </div>
+        <div class="col-md-6 text-end">
+            <form method="GET" action="{{ url_for('reports.balance_sheet') }}" class="mb-3">
+                <div class="input-group">
+                    <label class="input-group-text" for="as_of_date">As of Date</label>
+                    <input type="date" id="as_of_date" name="as_of_date" class="form-control" value="{{ as_of_date }}">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+            <div class="btn-group">
+                <a href="{{ url_for('reports.export_report', type='bs', format='csv', as_of_date=as_of_date) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-file-csv me-1"></i> Export CSV
+                </a>
+                <a href="{{ url_for('reports.export_report', type='bs', format='excel', as_of_date=as_of_date) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-file-excel me-1"></i> Export Excel
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Assets</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 15%">Account Code</th>
+                            <th>Account Name</th>
+                            <th class="text-end" style="width: 20%">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_data.assets %}
+                            {% for item in report_data.assets %}
+                                <tr>
+                                    <td>{{ item.account_code }}</td>
+                                    <td>{{ item.account_name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(item.balance) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No asset accounts with balances found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td></td>
+                            <td>Total Assets</td>
+                            <td class="text-end">${{ "{:,.2f}".format(report_data.totals.assets) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Liabilities</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 15%">Account Code</th>
+                            <th>Account Name</th>
+                            <th class="text-end" style="width: 20%">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_data.liabilities %}
+                            {% for item in report_data.liabilities %}
+                                <tr>
+                                    <td>{{ item.account_code }}</td>
+                                    <td>{{ item.account_name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(item.balance) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No liability accounts with balances found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td></td>
+                            <td>Total Liabilities</td>
+                            <td class="text-end">${{ "{:,.2f}".format(report_data.totals.liabilities) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Equity</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 15%">Account Code</th>
+                            <th>Account Name</th>
+                            <th class="text-end" style="width: 20%">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if report_data.equity %}
+                            {% for item in report_data.equity %}
+                                <tr>
+                                    <td>{{ item.account_code }}</td>
+                                    <td>{{ item.account_name }}</td>
+                                    <td class="text-end">${{ "{:,.2f}".format(item.balance) }}</td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No equity accounts with balances found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td></td>
+                            <td>Total Equity</td>
+                            <td class="text-end">${{ "{:,.2f}".format(report_data.totals.equity) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="card-title mb-0">Summary</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <tbody>
+                        <tr class="fw-bold">
+                            <td style="width: 15%"></td>
+                            <td>Total Liabilities and Equity</td>
+                            <td class="text-end" style="width: 20%">${{ "{:,.2f}".format(report_data.totals.liabilities_and_equity) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mt-4">
+        <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Reports
+        </a>
+    </div>
+</div>
+{% endblock %}
