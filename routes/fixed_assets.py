@@ -789,7 +789,8 @@ def add_maintenance(asset_id):
                          maintenance_types=maintenance_types,
                          expense_accounts=expense_accounts,
                          conditions=conditions,
-                         current_date=date.today().strftime('%Y-%m-%d'))
+                         current_date=date.today().strftime('%Y-%m-%d'),
+                         format_currency=format_currency)
 
 #
 # Asset Disposal
