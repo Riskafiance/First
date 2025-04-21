@@ -1,0 +1,331 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit' if purchase_order else 'Create' }} Purchase Order{% endblock %}
+{% block page_title %}{{ 'Edit' if purchase_order else 'Create' }} Purchase Order{% endblock %}
+
+{% block page_actions %}
+<div class="btn-group" role="group">
+    <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back to Purchase Orders
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post" id="poForm">
+            <div class="row mb-4">
+                <!-- Left Column -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="vendor_id" class="form-label">Vendor <span class="text-danger">*</span></label>
+                        <select class="form-select" id="vendor_id" name="vendor_id" required>
+                            <option value="">Select Vendor</option>
+                            {% for vendor in vendors %}
+                            <option value="{{ vendor.id }}" {% if purchase_order and purchase_order.vendor_id == vendor.id %}selected{% endif %}>
+                                {{ vendor.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="warehouse_id" class="form-label">Destination Warehouse <span class="text-danger">*</span></label>
+                        <select class="form-select" id="warehouse_id" name="warehouse_id" required>
+                            <option value="">Select Warehouse</option>
+                            {% for warehouse in warehouses %}
+                            <option value="{{ warehouse.id }}" {% if purchase_order and purchase_order.warehouse_id == warehouse.id %}selected{% endif %}>
+                                {{ warehouse.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Right Column -->
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="order_date" name="order_date" 
+                               value="{{ purchase_order.order_date.strftime('%Y-%m-%d') if purchase_order and purchase_order.order_date else today }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                        <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date"
+                               value="{{ purchase_order.expected_delivery_date.strftime('%Y-%m-%d') if purchase_order and purchase_order.expected_delivery_date else '' }}">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea class="form-control" id="notes" name="notes" rows="3">{{ purchase_order.notes if purchase_order else '' }}</textarea>
+            </div>
+            
+            <!-- Line Items Section -->
+            <h5 class="mb-3">Line Items</h5>
+            
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered" id="lineItemsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 40%">Product</th>
+                            <th style="width: 15%">Quantity</th>
+                            <th style="width: 20%">Unit Price</th>
+                            <th style="width: 20%">Amount</th>
+                            <th style="width: 5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsBody">
+                        {% if purchase_order and purchase_order.line_items %}
+                            {% for item in purchase_order.line_items %}
+                            <tr class="line-item-row">
+                                <td>
+                                    <select class="form-select product-select" name="product_id[]" required>
+                                        <option value="">Select Product</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}" data-cost="{{ product.cost_price }}" data-uom="{{ product.uom.abbreviation }}"
+                                                {% if item.product_id == product.id %}selected{% endif %}>
+                                            {{ product.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control quantity-input" name="quantity[]" min="0.01" step="0.01" 
+                                               value="{{ item.quantity }}" required>
+                                        <span class="input-group-text uom-text">{{ item.product.uom.abbreviation }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control unit-price-input" name="unit_price[]" min="0.01" step="0.01" 
+                                               value="{{ item.unit_price }}" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="text" class="form-control line-amount" value="{{ '{:.2f}'.format(item.quantity * item.unit_price) }}" readonly>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-danger btn-sm remove-line-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr class="line-item-row">
+                                <td>
+                                    <select class="form-select product-select" name="product_id[]" required>
+                                        <option value="">Select Product</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}" data-cost="{{ product.cost_price }}" data-uom="{{ product.uom.abbreviation }}">
+                                            {{ product.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control quantity-input" name="quantity[]" min="0.01" step="0.01" value="1" required>
+                                        <span class="input-group-text uom-text">-</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" class="form-control unit-price-input" name="unit_price[]" min="0.01" step="0.01" value="0.00" required>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="text" class="form-control line-amount" value="0.00" readonly>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-danger btn-sm remove-line-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mb-4">
+                <button type="button" class="btn btn-outline-primary" id="addLineBtn">
+                    <i class="fas fa-plus me-1"></i> Add Line
+                </button>
+            </div>
+            
+            <!-- Summary -->
+            <div class="row justify-content-end mb-4">
+                <div class="col-md-4">
+                    <div class="bg-light p-3 rounded">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotalAmount">$0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <strong>Total:</strong>
+                            <strong id="totalAmount">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Button Group -->
+            <div class="d-flex justify-content-between">
+                <div>
+                    {% if purchase_order and purchase_order.status.name == 'Draft' %}
+                    <button type="submit" class="btn btn-danger" name="action" value="cancel" onclick="return confirm('Are you sure you want to cancel this purchase order?')">
+                        Cancel PO
+                    </button>
+                    {% endif %}
+                </div>
+                <div>
+                    <button type="submit" class="btn btn-secondary" name="action" value="save_draft">
+                        Save as Draft
+                    </button>
+                    <button type="submit" class="btn btn-primary ms-2" name="action" value="submit">
+                        Submit
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const lineItemsBody = document.getElementById('lineItemsBody');
+    const addLineBtn = document.getElementById('addLineBtn');
+    
+    // Add new line item
+    addLineBtn.addEventListener('click', function() {
+        addNewLineItem();
+    });
+    
+    // Remove line item
+    lineItemsBody.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-line-btn') || e.target.parentElement.classList.contains('remove-line-btn')) {
+            const row = e.target.closest('.line-item-row');
+            
+            // Don't remove if it's the only row
+            if (lineItemsBody.querySelectorAll('.line-item-row').length > 1) {
+                row.remove();
+                calculateTotals();
+            } else {
+                alert('At least one line item is required.');
+            }
+        }
+    });
+    
+    // Calculate line amount when quantity or unit price changes
+    lineItemsBody.addEventListener('input', function(e) {
+        if (e.target.classList.contains('quantity-input') || e.target.classList.contains('unit-price-input')) {
+            const row = e.target.closest('.line-item-row');
+            calculateLineAmount(row);
+            calculateTotals();
+        }
+    });
+    
+    // Update unit price and UOM when product is selected
+    lineItemsBody.addEventListener('change', function(e) {
+        if (e.target.classList.contains('product-select')) {
+            const row = e.target.closest('.line-item-row');
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            
+            if (selectedOption.value) {
+                const costPrice = selectedOption.getAttribute('data-cost');
+                const uom = selectedOption.getAttribute('data-uom');
+                
+                row.querySelector('.unit-price-input').value = costPrice;
+                row.querySelector('.uom-text').textContent = uom;
+                
+                calculateLineAmount(row);
+                calculateTotals();
+            }
+        }
+    });
+    
+    // Initial calculations
+    calculateTotals();
+    
+    // Form validation
+    document.getElementById('poForm').addEventListener('submit', function(e) {
+        const lineItems = lineItemsBody.querySelectorAll('.line-item-row');
+        
+        // Check if at least one line item is added
+        if (lineItems.length === 0) {
+            e.preventDefault();
+            alert('At least one line item is required.');
+            return;
+        }
+        
+        // Check if all products are selected
+        let hasEmptyProduct = false;
+        lineItems.forEach(row => {
+            const productSelect = row.querySelector('.product-select');
+            if (!productSelect.value) {
+                hasEmptyProduct = true;
+            }
+        });
+        
+        if (hasEmptyProduct) {
+            e.preventDefault();
+            alert('Please select a product for all line items.');
+            return;
+        }
+    });
+    
+    // Helper function: Calculate line amount
+    function calculateLineAmount(row) {
+        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.unit-price-input').value) || 0;
+        const lineAmount = quantity * unitPrice;
+        
+        row.querySelector('.line-amount').value = lineAmount.toFixed(2);
+    }
+    
+    // Helper function: Calculate totals
+    function calculateTotals() {
+        let subtotal = 0;
+        
+        document.querySelectorAll('.line-amount').forEach(element => {
+            subtotal += parseFloat(element.value) || 0;
+        });
+        
+        // Update totals
+        document.getElementById('subtotalAmount').textContent = '$' + subtotal.toFixed(2);
+        document.getElementById('totalAmount').textContent = '$' + subtotal.toFixed(2);
+    }
+    
+    // Helper function: Add new line item
+    function addNewLineItem() {
+        const template = document.querySelector('.line-item-row').cloneNode(true);
+        
+        // Reset form values
+        template.querySelector('.product-select').value = '';
+        template.querySelector('.quantity-input').value = '1';
+        template.querySelector('.unit-price-input').value = '0.00';
+        template.querySelector('.line-amount').value = '0.00';
+        template.querySelector('.uom-text').textContent = '-';
+        
+        lineItemsBody.appendChild(template);
+    }
+});
+</script>
+{% endblock %}
