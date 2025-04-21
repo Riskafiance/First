@@ -23,10 +23,17 @@ app.secret_key = os.environ.get("SESSION_SECRET", "riska_finance_enterprise_secr
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 # Configure database
-app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "sqlite:///riskas_finance.db")
+# Handle potential 'postgres://' URLs from some providers by converting to 'postgresql://'
+database_url = os.environ.get("DATABASE_URL", "sqlite:///riskas_finance.db")
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
+
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
     "pool_pre_ping": True,
+    "pool_size": 10,  # Optimal for most PostgreSQL connections
+    "max_overflow": 20  # Allow additional temporary connections if needed
 }
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -63,6 +70,16 @@ with app.app_context():
             db.session.add(admin)
             db.session.commit()
             print("Created default admin user: admin / adminpassword")
+    
+    # If using PostgreSQL, apply database optimizations
+    if database_url.startswith(("postgres://", "postgresql://")):
+        print("PostgreSQL detected - applying optimizations...")
+        try:
+            from utils.database import optimize_queries
+            optimize_queries()
+            print("PostgreSQL optimizations applied!")
+        except Exception as e:
+            print(f"Error applying PostgreSQL optimizations: {e}")
     
     # Setup user loader for Flask-Login
     @login_manager.user_loader

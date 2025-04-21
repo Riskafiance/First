@@ -1,1 +1,1 @@
-# This is an empty file, all utility functions are in the main utils.py file in the root directory
+# This file makes the utils directory a Python package
