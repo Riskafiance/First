@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+
+{% block title %}Bank Statements - {{ account.name }} - Riska's Finance Enterprise{% endblock %}
+{% block page_title %}Bank Statements: {{ account.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Bank Statements</h5>
+        {% if current_user.has_permission(Role.CAN_CREATE) %}
+        <a href="{{ url_for('bank_reconciliation.add_statement', account_id=account.id) }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Add Statement
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <dl class="row">
+                        <dt class="col-sm-4">Account Name:</dt>
+                        <dd class="col-sm-8">{{ account.name }}</dd>
+                        
+                        <dt class="col-sm-4">Account Number:</dt>
+                        <dd class="col-sm-8">{{ account.account_number }}</dd>
+                        
+                        <dt class="col-sm-4">GL Account:</dt>
+                        <dd class="col-sm-8">{{ account.gl_account.code }} - {{ account.gl_account.name }}</dd>
+                    </dl>
+                </div>
+                <div class="col-md-6">
+                    <dl class="row">
+                        <dt class="col-sm-4">Currency:</dt>
+                        <dd class="col-sm-8">{{ account.currency }}</dd>
+                        
+                        <dt class="col-sm-4">Status:</dt>
+                        <dd class="col-sm-8">
+                            {% if account.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Description:</dt>
+                        <dd class="col-sm-8">{{ account.description or 'No description provided' }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="d-flex mb-3">
+                <a href="{{ url_for('bank_reconciliation.bank_accounts') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Bank Accounts
+                </a>
+            </div>
+        </div>
+        
+        <hr>
+        
+        {% if statements %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Statement Date</th>
+                        <th>Period</th>
+                        <th>Beginning Balance</th>
+                        <th>Ending Balance</th>
+                        <th>Reconciliation Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for statement in statements %}
+                    <tr>
+                        <td>{{ statement.statement_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ statement.start_date.strftime('%Y-%m-%d') }} to {{ statement.end_date.strftime('%Y-%m-%d') }}</td>
+                        <td>${{ "{:,.2f}".format(statement.beginning_balance) }}</td>
+                        <td>${{ "{:,.2f}".format(statement.ending_balance) }}</td>
+                        <td>
+                            {% if statement.is_reconciled %}
+                            <span class="badge bg-success">Reconciled</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Pending</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('bank_reconciliation.transactions', statement_id=statement.id) }}" class="btn btn-sm btn-outline-primary" title="View Transactions">
+                                    <i class="fas fa-list"></i> Transactions
+                                </a>
+                                {% if not statement.is_reconciled and current_user.has_permission(Role.CAN_EDIT) %}
+                                <a href="{{ url_for('bank_reconciliation.import_transactions', statement_id=statement.id) }}" class="btn btn-sm btn-outline-info" title="Import Transactions">
+                                    <i class="fas fa-file-import"></i> Import
+                                </a>
+                                <a href="{{ url_for('bank_reconciliation.reconcile', statement_id=statement.id) }}" class="btn btn-sm btn-outline-success" title="Reconcile">
+                                    <i class="fas fa-check-double"></i> Reconcile
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i> No bank statements found for this account. 
+            {% if current_user.has_permission(Role.CAN_CREATE) %}
+            <a href="{{ url_for('bank_reconciliation.add_statement', account_id=account.id) }}" class="alert-link">Add your first statement</a>.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

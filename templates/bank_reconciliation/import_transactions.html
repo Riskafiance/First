@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+
+{% block title %}Import Transactions - Riska's Finance Enterprise{% endblock %}
+{% block page_title %}Import Bank Transactions: {{ statement.bank_account.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Import Transactions</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i> Instructions</h5>
+                    <p>Follow these steps to import your bank transactions:</p>
+                    <ol>
+                        <li>Export your transactions from your bank's website as a CSV file.</li>
+                        <li>Upload the file using the form below.</li>
+                        <li>Map the columns in your file to the required fields (date, description, amount).</li>
+                        <li>Click "Import Transactions" to process the file.</li>
+                    </ol>
+                    <p class="mb-0">Note: The system will try to automatically reconcile transactions using existing rules.</p>
+                </div>
+                
+                <form method="post" enctype="multipart/form-data" class="mt-4">
+                    <div class="mb-4">
+                        <h5>Statement Information</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="fw-bold">Bank Account:</label>
+                                    <div>{{ statement.bank_account.name }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="fw-bold">Statement Date:</label>
+                                    <div>{{ statement.statement_date.strftime('%Y-%m-%d') }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="fw-bold">Period:</label>
+                                    <div>{{ statement.start_date.strftime('%Y-%m-%d') }} to {{ statement.end_date.strftime('%Y-%m-%d') }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Upload CSV File</h5>
+                        <div class="mb-3">
+                            <label for="transaction_file" class="form-label">Select Transaction File <span class="text-danger">*</span></label>
+                            <input type="file" class="form-control" id="transaction_file" name="transaction_file" accept=".csv" required>
+                            <div class="form-text">Upload a CSV file containing your bank transactions.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Column Mapping</h5>
+                        <p>Specify which columns in your CSV file contain the required transaction information.</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="date_column" class="form-label">Date Column <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="date_column" name="date_column" placeholder="Column name or number" required>
+                                    <div class="form-text">The column containing transaction dates (e.g., "Transaction Date" or "1").</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="description_column" class="form-label">Description Column <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="description_column" name="description_column" placeholder="Column name or number" required>
+                                    <div class="form-text">The column containing transaction descriptions (e.g., "Description" or "2").</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="amount_column" class="form-label">Amount Column <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="amount_column" name="amount_column" placeholder="Column name or number" required>
+                                    <div class="form-text">The column containing transaction amounts (e.g., "Amount" or "3").</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="reference_column" class="form-label">Reference Column <span class="text-muted">(Optional)</span></label>
+                                    <input type="text" class="form-control" id="reference_column" name="reference_column" placeholder="Column name or number">
+                                    <div class="form-text">The column containing reference numbers (e.g., "Reference" or "4").</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i> Make sure the date format in your CSV matches one of these formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY, MM-DD-YYYY, or DD-MM-YYYY.
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('bank_reconciliation.transactions', statement_id=statement.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Transactions
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-file-import me-1"></i> Import Transactions
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
