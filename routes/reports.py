@@ -2,12 +2,19 @@ from flask import Blueprint, render_template, request, Response, send_file
 from flask_login import login_required
 from app import db
 from models import AccountType, Account, JournalEntry, JournalItem
-import utils
 from datetime import datetime, timedelta
 import pandas as pd
 import io
 import csv
+import sys, os
 from routes.exports import export_general_ledger_report
+
+# Import functions from core_utils.py (renamed utils.py to avoid conflicts)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+sys.path.insert(0, root_dir)
+
+from core_utils import generate_pl_report, generate_balance_sheet, generate_general_ledger
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -37,7 +44,7 @@ def pl():
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
     
     # Generate report
-    report_data = utils.generate_pl_report(start_date, end_date)
+    report_data = generate_pl_report(start_date, end_date)
     
     return render_template(
         'report_pl.html',
@@ -60,7 +67,7 @@ def balance_sheet():
         as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
     
     # Generate report
-    report_data = utils.generate_balance_sheet(as_of_date)
+    report_data = generate_balance_sheet(as_of_date)
     
     return render_template(
         'report_balance_sheet.html',
@@ -100,7 +107,7 @@ def custom_report():
     report_data = None
     if request.args:  # Only generate report if filters are submitted
         if report_type == 'general_ledger':
-            report_data = utils.generate_general_ledger(
+            report_data = generate_general_ledger(
                 start_date, 
                 end_date, 
                 account_ids, 
@@ -147,7 +154,7 @@ def export_report():
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         
         # Generate P&L report
-        report_data = utils.generate_pl_report(start_date, end_date)
+        report_data = generate_pl_report(start_date, end_date)
         return export_pl_report(report_data, export_format)
     
     elif report_type == 'bs':
@@ -161,7 +168,7 @@ def export_report():
             as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
         
         # Generate Balance Sheet report
-        report_data = utils.generate_balance_sheet(as_of_date)
+        report_data = generate_balance_sheet(as_of_date)
         return export_balance_sheet_report(report_data, export_format)
     
     elif report_type == 'custom':
@@ -186,7 +193,7 @@ def export_report():
         
         # Generate report based on type
         if custom_report_type == 'general_ledger':
-            report_data = utils.generate_general_ledger(
+            report_data = generate_general_ledger(
                 start_date, 
                 end_date, 
                 account_ids, 
