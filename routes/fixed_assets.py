@@ -1,14 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
-from datetime import datetime, date as date_class
+from datetime import datetime, date
 from sqlalchemy import func, asc, desc
 from sqlalchemy.exc import SQLAlchemyError
 from decimal import Decimal
 import json
 
 from app import db
-# Use date_class to avoid any confusion with local variables
-date = date_class
 from models import (
     Account, AccountType, JournalEntry, JournalItem, Entity, EntityType,
     AssetCategory, AssetLocation, AssetStatus, AssetCondition, FixedAsset,
