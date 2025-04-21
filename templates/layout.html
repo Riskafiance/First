@@ -74,6 +74,12 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {% if 'budgeting.' in request.endpoint %}active{% endif %}" href="{{ url_for('budgeting.dashboard') }}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Budgeting</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'entities.customers' %}active{% endif %}" href="{{ url_for('entities.customers') }}">
                             <i class="fas fa-users"></i>
                             <span>Customers</span>
@@ -87,7 +93,7 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'reports.index' %}active{% endif %}" href="{{ url_for('reports.index') }}">
-                            <i class="fas fa-chart-pie"></i>
+                            <i class="fas fa-file-alt"></i>
                             <span>Reports</span>
                         </a>
                     </li>
