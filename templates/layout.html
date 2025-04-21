@@ -26,6 +26,7 @@
             padding-top: 60px;
             z-index: 100;
             transition: all 0.3s;
+            overflow-y: auto;
         }
         
         #sidebar.collapsed {
@@ -54,6 +55,11 @@
         
         #sidebar .nav-item .nav-treeview {
             margin-left: 1.5rem;
+        }
+        
+        .sidebar-content {
+            height: calc(100vh - 60px);
+            overflow-y: auto;
         }
         
         #content {
@@ -159,6 +165,11 @@
             
             .sidebar-backdrop.show {
                 display: block;
+            }
+            
+            .sidebar-content {
+                height: calc(100vh - 60px);
+                overflow-y: auto;
             }
         }
     </style>
