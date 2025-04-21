@@ -525,6 +525,144 @@ def get_account_balance(account_id, start_date=None, end_date=None):
     
     return balance
 
+def generate_general_ledger(start_date=None, end_date=None, account_ids=None, account_type_ids=None, include_unposted=False):
+    """Generate a general ledger report with optional filters"""
+    from models import JournalEntry, JournalItem, Account, AccountType
+    from datetime import datetime
+    
+    # Build the query with filtering
+    query = db.session.query(
+        JournalEntry.id.label('entry_id'),
+        JournalEntry.entry_date,
+        JournalEntry.reference,
+        JournalEntry.description.label('entry_description'),
+        JournalEntry.is_posted,
+        Account.id.label('account_id'),
+        Account.code.label('account_code'),
+        Account.name.label('account_name'),
+        AccountType.name.label('account_type'),
+        JournalItem.description.label('item_description'),
+        JournalItem.debit_amount,
+        JournalItem.credit_amount
+    ).join(
+        JournalItem, JournalEntry.id == JournalItem.journal_entry_id
+    ).join(
+        Account, JournalItem.account_id == Account.id
+    ).join(
+        AccountType, Account.account_type_id == AccountType.id
+    )
+    
+    # Apply date filters
+    if start_date:
+        query = query.filter(JournalEntry.entry_date >= start_date)
+    if end_date:
+        query = query.filter(JournalEntry.entry_date <= end_date)
+    
+    # Apply account filters
+    if account_ids and any(account_ids):
+        account_ids = [int(id) for id in account_ids]
+        query = query.filter(Account.id.in_(account_ids))
+    
+    # Apply account type filters
+    if account_type_ids and any(account_type_ids):
+        account_type_ids = [int(id) for id in account_type_ids]
+        query = query.filter(Account.account_type_id.in_(account_type_ids))
+    
+    # Apply posted status filter
+    if not include_unposted:
+        query = query.filter(JournalEntry.is_posted == True)
+    
+    # Order by date and entry ID
+    query = query.order_by(JournalEntry.entry_date, JournalEntry.id, Account.code)
+    
+    # Execute the query
+    results = query.all()
+    
+    # Organize results by account with running balance
+    accounts = {}
+    entries = []
+    
+    for row in results:
+        entry = {
+            'entry_id': row.entry_id,
+            'entry_date': row.entry_date,
+            'reference': row.reference,
+            'entry_description': row.entry_description,
+            'is_posted': row.is_posted,
+            'account_id': row.account_id,
+            'account_code': row.account_code,
+            'account_name': row.account_name,
+            'account_type': row.account_type,
+            'item_description': row.item_description,
+            'debit_amount': float(row.debit_amount) if row.debit_amount else 0,
+            'credit_amount': float(row.credit_amount) if row.credit_amount else 0
+        }
+        
+        entries.append(entry)
+        
+        # Track account balances
+        if row.account_id not in accounts:
+            accounts[row.account_id] = {
+                'id': row.account_id,
+                'code': row.account_code,
+                'name': row.account_name,
+                'type': row.account_type,
+                'starting_balance': 0,  # Placeholder, will calculate running balances later
+                'debit_total': 0,
+                'credit_total': 0,
+                'entries': []
+            }
+        
+        accounts[row.account_id]['entries'].append(entry)
+        accounts[row.account_id]['debit_total'] += float(row.debit_amount) if row.debit_amount else 0
+        accounts[row.account_id]['credit_total'] += float(row.credit_amount) if row.credit_amount else 0
+    
+    # Calculate net movement and ending balance for each account
+    for account_id, account in accounts.items():
+        # Get the starting balance for this account (as of start_date - 1 day)
+        if start_date:
+            account['starting_balance'] = get_account_balance(account_id, end_date=start_date - timedelta(days=1))
+        else:
+            account['starting_balance'] = 0
+        
+        account_type = account['type']
+        
+        # Calculate balance based on account type
+        if account_type in [AccountType.ASSET, AccountType.EXPENSE]:
+            # Debit increases, credit decreases
+            account['net_movement'] = account['debit_total'] - account['credit_total']
+        else:
+            # Credit increases, debit decreases
+            account['net_movement'] = account['credit_total'] - account['debit_total']
+        
+        account['ending_balance'] = account['starting_balance'] + account['net_movement']
+        
+        # Calculate running balance for each entry
+        running_balance = account['starting_balance']
+        for entry in account['entries']:
+            if account_type in [AccountType.ASSET, AccountType.EXPENSE]:
+                # Debit increases, credit decreases
+                running_balance = running_balance + entry['debit_amount'] - entry['credit_amount']
+            else:
+                # Credit increases, debit decreases
+                running_balance = running_balance - entry['debit_amount'] + entry['credit_amount']
+            
+            entry['running_balance'] = running_balance
+    
+    # Build the final report data
+    report_data = {
+        'start_date': start_date.strftime('%Y-%m-%d') if start_date else None,
+        'end_date': end_date.strftime('%Y-%m-%d') if end_date else None,
+        'accounts': list(accounts.values()),
+        'entries': entries,
+        'totals': {
+            'debit_total': sum(account['debit_total'] for account in accounts.values()),
+            'credit_total': sum(account['credit_total'] for account in accounts.values())
+        }
+    }
+    
+    return report_data
+
 def generate_balance_sheet(as_of_date=None):
     """Generate a balance sheet as of a specific date"""
     from models import Account, AccountType

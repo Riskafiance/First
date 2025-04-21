@@ -1,0 +1,296 @@
+{% extends 'layout.html' %}
+
+{% block title %}Custom Reports | Riska's Finance Enterprise{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="h3 mb-0">Custom Reports</h1>
+            <p class="text-muted">Create advanced reports with custom filters</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Filter Form -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="card-title mb-0">Report Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" action="{{ url_for('reports.custom_report') }}">
+                        <!-- Report Type -->
+                        <div class="mb-3">
+                            <label for="report_type" class="form-label">Report Type</label>
+                            <select id="report_type" name="report_type" class="form-select">
+                                <option value="general_ledger" {% if report_type == 'general_ledger' %}selected{% endif %}>General Ledger</option>
+                                <option value="transaction_detail" {% if report_type == 'transaction_detail' %}selected{% endif %} disabled>Transaction Detail</option>
+                                <option value="trial_balance" {% if report_type == 'trial_balance' %}selected{% endif %} disabled>Trial Balance</option>
+                            </select>
+                        </div>
+
+                        <!-- Date Range -->
+                        <div class="mb-3">
+                            <label class="form-label">Date Range</label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">From</span>
+                                <input type="date" id="start_date" name="start_date" class="form-control" value="{{ start_date }}">
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text">To</span>
+                                <input type="date" id="end_date" name="end_date" class="form-control" value="{{ end_date }}">
+                            </div>
+                        </div>
+
+                        <!-- Account Types -->
+                        <div class="mb-3">
+                            <label class="form-label">Account Types</label>
+                            <div class="form-check">
+                                <input class="form-check-input select-all-account-types" type="checkbox" value="" id="select_all_account_types">
+                                <label class="form-check-label" for="select_all_account_types">
+                                    Select All
+                                </label>
+                            </div>
+                            <hr class="my-2">
+                            <div class="account-type-list" style="max-height: 200px; overflow-y: auto;">
+                                {% for account_type in account_types %}
+                                <div class="form-check">
+                                    <input class="form-check-input account-type-checkbox" type="checkbox" 
+                                           value="{{ account_type.id }}" id="account_type_{{ account_type.id }}" 
+                                           name="account_type_ids" 
+                                           {% if account_type.id|string in account_type_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="account_type_{{ account_type.id }}">
+                                        {{ account_type.name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Accounts -->
+                        <div class="mb-3">
+                            <label class="form-label">Accounts</label>
+                            <div class="form-check">
+                                <input class="form-check-input select-all-accounts" type="checkbox" value="" id="select_all_accounts">
+                                <label class="form-check-label" for="select_all_accounts">
+                                    Select All
+                                </label>
+                            </div>
+                            <hr class="my-2">
+                            <div class="account-list" style="max-height: 200px; overflow-y: auto;">
+                                {% for account in accounts %}
+                                <div class="form-check">
+                                    <input class="form-check-input account-checkbox" type="checkbox" 
+                                           value="{{ account.id }}" id="account_{{ account.id }}" 
+                                           name="account_ids" 
+                                           data-account-type="{{ account.account_type_id }}"
+                                           {% if account.id|string in account_ids %}checked{% endif %}>
+                                    <label class="form-check-label" for="account_{{ account.id }}">
+                                        {{ account.code }} - {{ account.name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Additional Options -->
+                        <div class="mb-3">
+                            <label class="form-label">Additional Options</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="true" id="include_unposted" name="include_unposted" {% if include_unposted %}checked{% endif %}>
+                                <label class="form-check-label" for="include_unposted">
+                                    Include Unposted Entries
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Group By (for some report types) -->
+                        <div class="mb-3" id="group_by_section" {% if report_type != 'transaction_detail' %}style="display:none"{% endif %}>
+                            <label for="group_by" class="form-label">Group By</label>
+                            <select id="group_by" name="group_by" class="form-select">
+                                <option value="none" {% if group_by == 'none' %}selected{% endif %}>None</option>
+                                <option value="date" {% if group_by == 'date' %}selected{% endif %}>Date</option>
+                                <option value="account" {% if group_by == 'account' %}selected{% endif %}>Account</option>
+                                <option value="entry" {% if group_by == 'entry' %}selected{% endif %}>Journal Entry</option>
+                            </select>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-filter me-1"></i> Generate Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Results -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Report Results</h5>
+                    {% if report_data %}
+                    <div class="btn-group">
+                        <a href="{{ url_for('reports.export_report', type='custom', format='csv', report_type=report_type, start_date=start_date, end_date=end_date) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-file-csv me-1"></i> CSV
+                        </a>
+                        <a href="{{ url_for('reports.export_report', type='custom', format='excel', report_type=report_type, start_date=start_date, end_date=end_date) }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-file-excel me-1"></i> Excel
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    {% if report_data %}
+                        {% if report_type == 'general_ledger' %}
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Reference</th>
+                                            <th>Account</th>
+                                            <th>Description</th>
+                                            <th class="text-end">Debit</th>
+                                            <th class="text-end">Credit</th>
+                                            <th class="text-end">Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for account in report_data.accounts %}
+                                            <tr class="table-secondary">
+                                                <th colspan="4">{{ account.code }} - {{ account.name }}</th>
+                                                <th class="text-end">${{ "{:,.2f}".format(account.debit_total) }}</th>
+                                                <th class="text-end">${{ "{:,.2f}".format(account.credit_total) }}</th>
+                                                <th class="text-end">${{ "{:,.2f}".format(account.ending_balance) }}</th>
+                                            </tr>
+                                            <tr class="table-light">
+                                                <td colspan="6">Starting Balance</td>
+                                                <td class="text-end">${{ "{:,.2f}".format(account.starting_balance) }}</td>
+                                            </tr>
+                                            {% for entry in account.entries %}
+                                                <tr {% if not entry.is_posted %}class="table-warning"{% endif %}>
+                                                    <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
+                                                    <td>{{ entry.reference }}</td>
+                                                    <td>{{ entry.account_code }}</td>
+                                                    <td>{{ entry.item_description or entry.entry_description }}</td>
+                                                    <td class="text-end">{% if entry.debit_amount > 0 %}${{ "{:,.2f}".format(entry.debit_amount) }}{% endif %}</td>
+                                                    <td class="text-end">{% if entry.credit_amount > 0 %}${{ "{:,.2f}".format(entry.credit_amount) }}{% endif %}</td>
+                                                    <td class="text-end">${{ "{:,.2f}".format(entry.running_balance) }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                            <tr class="table-light">
+                                                <td colspan="6">Ending Balance</td>
+                                                <td class="text-end">${{ "{:,.2f}".format(account.ending_balance) }}</td>
+                                            </tr>
+                                            {% if not loop.last %}<tr><td colspan="7"></td></tr>{% endif %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="7" class="text-center py-3">No transactions found for the selected filters.</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <th colspan="4">Grand Total</th>
+                                            <th class="text-end">${{ "{:,.2f}".format(report_data.totals.debit_total) }}</th>
+                                            <th class="text-end">${{ "{:,.2f}".format(report_data.totals.credit_total) }}</th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info m-3">
+                            <i class="fas fa-info-circle me-2"></i> Select your report options and click "Generate Report" to view results.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between mt-4">
+        <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Reports
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle Select All for Account Types
+    const selectAllAccountTypes = document.querySelector('.select-all-account-types');
+    const accountTypeCheckboxes = document.querySelectorAll('.account-type-checkbox');
+    
+    selectAllAccountTypes.addEventListener('change', function() {
+        const isChecked = this.checked;
+        accountTypeCheckboxes.forEach(checkbox => {
+            checkbox.checked = isChecked;
+        });
+        
+        // Also filter accounts based on account types
+        filterAccountsByType();
+    });
+    
+    // Handle Select All for Accounts
+    const selectAllAccounts = document.querySelector('.select-all-accounts');
+    const accountCheckboxes = document.querySelectorAll('.account-checkbox');
+    
+    selectAllAccounts.addEventListener('change', function() {
+        const isChecked = this.checked;
+        accountCheckboxes.forEach(checkbox => {
+            if (checkbox.style.display !== 'none') {
+                checkbox.checked = isChecked;
+            }
+        });
+    });
+    
+    // Filter accounts based on selected account types
+    function filterAccountsByType() {
+        const selectedAccountTypes = Array.from(accountTypeCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+            
+        accountCheckboxes.forEach(checkbox => {
+            const accountTypeId = checkbox.getAttribute('data-account-type');
+            const parentNode = checkbox.closest('.form-check');
+            
+            if (selectedAccountTypes.length === 0 || selectedAccountTypes.includes(accountTypeId)) {
+                parentNode.style.display = '';
+            } else {
+                parentNode.style.display = 'none';
+                checkbox.checked = false;
+            }
+        });
+    }
+    
+    // Add event listeners to account type checkboxes
+    accountTypeCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', filterAccountsByType);
+    });
+    
+    // Handle report type changes
+    const reportTypeSelect = document.getElementById('report_type');
+    const groupBySection = document.getElementById('group_by_section');
+    
+    reportTypeSelect.addEventListener('change', function() {
+        // Show/hide group by section based on report type
+        if (this.value === 'transaction_detail') {
+            groupBySection.style.display = '';
+        } else {
+            groupBySection.style.display = 'none';
+        }
+    });
+    
+    // Initial filtering
+    filterAccountsByType();
+});
+</script>
+{% endblock %}

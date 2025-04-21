@@ -66,6 +66,60 @@ def balance_sheet():
         report_data=report_data,
         as_of_date=as_of_date.strftime('%Y-%m-%d')
     )
+    
+@reports_bp.route('/reports/custom')
+@login_required
+def custom_report():
+    """Custom report with advanced filters"""
+    # Get filter parameters
+    report_type = request.args.get('report_type', 'general_ledger')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    account_ids = request.args.getlist('account_ids')
+    account_type_ids = request.args.getlist('account_type_ids')
+    include_unposted = request.args.get('include_unposted', 'false') == 'true'
+    group_by = request.args.get('group_by', 'none')
+    
+    # Default to current month if dates not specified
+    if not start_date:
+        start_date = datetime.now().date().replace(day=1)
+    else:
+        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    
+    if not end_date:
+        end_date = datetime.now().date()
+    else:
+        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+    
+    # Get filter options for the form
+    account_types = AccountType.query.all()
+    accounts = Account.query.order_by(Account.code).all()
+    
+    # Process the report based on type and filters
+    report_data = None
+    if request.args:  # Only generate report if filters are submitted
+        if report_type == 'general_ledger':
+            report_data = generate_general_ledger(
+                start_date, 
+                end_date, 
+                account_ids, 
+                account_type_ids,
+                include_unposted
+            )
+    
+    return render_template(
+        'report_custom.html',
+        report_type=report_type,
+        start_date=start_date.strftime('%Y-%m-%d'),
+        end_date=end_date.strftime('%Y-%m-%d'),
+        account_ids=account_ids,
+        account_type_ids=account_type_ids,
+        include_unposted=include_unposted,
+        group_by=group_by,
+        account_types=account_types,
+        accounts=accounts,
+        report_data=report_data
+    )
 
 @reports_bp.route('/reports/export')
 @login_required
@@ -108,6 +162,41 @@ def export_report():
         # Generate Balance Sheet report
         report_data = generate_balance_sheet(as_of_date)
         return export_balance_sheet_report(report_data, export_format)
+    
+    elif report_type == 'custom':
+        # Get custom report parameters
+        custom_report_type = request.args.get('report_type', 'general_ledger')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        account_ids = request.args.getlist('account_ids')
+        account_type_ids = request.args.getlist('account_type_ids')
+        include_unposted = request.args.get('include_unposted', 'false') == 'true'
+        
+        # Default to current month if dates not specified
+        if not start_date:
+            start_date = datetime.now().date().replace(day=1)
+        else:
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+        
+        if not end_date:
+            end_date = datetime.now().date()
+        else:
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        # Generate report based on type
+        if custom_report_type == 'general_ledger':
+            report_data = generate_general_ledger(
+                start_date, 
+                end_date, 
+                account_ids, 
+                account_type_ids,
+                include_unposted
+            )
+            return export_general_ledger_report(report_data, export_format)
+        
+        # Add more custom report types here as needed
+        
+        return "Custom report type not supported", 400
     
     # Default response if report type not recognized
     return "Report type not supported", 400
