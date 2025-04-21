@@ -306,7 +306,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('assets.depreciation') }}" class="nav-link {{ 'active' if request.endpoint == 'assets.depreciation' }}">
+                            <a href="{{ url_for('fixed_assets.maintenance_list') }}" class="nav-link {{ 'active' if request.endpoint == 'fixed_assets.maintenance_list' }}">
                                 <i class="fas fa-chart-line"></i> Depreciation
                             </a>
                         </li>
@@ -323,7 +323,7 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="budgetMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('budgeting.list') }}" class="nav-link {{ 'active' if request.endpoint == 'budgeting.list' }}">
+                            <a href="{{ url_for('budgeting.budgets') }}" class="nav-link {{ 'active' if request.endpoint == 'budgeting.budgets' }}">
                                 <i class="fas fa-file-invoice"></i> Budgets
                             </a>
                         </li>
