@@ -668,6 +668,7 @@ def maintenance_list():
 @fixed_assets_bp.route('/assets/<int:asset_id>/add-maintenance', methods=['GET', 'POST'])
 @login_required
 def add_maintenance(asset_id):
+    from datetime import date
     """Add a maintenance record for a fixed asset"""
     asset = FixedAsset.query.get_or_404(asset_id)
     
