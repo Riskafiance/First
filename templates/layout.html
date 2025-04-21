@@ -350,7 +350,7 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="reportsMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('reports.profit_loss') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.profit_loss' }}">
+                            <a href="{{ url_for('reports.pl') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.pl' }}">
                                 <i class="fas fa-file-invoice-dollar"></i> Profit & Loss
                             </a>
                         </li>
@@ -360,12 +360,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('reports.cash_flow') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.cash_flow' }}">
-                                <i class="fas fa-money-bill-wave"></i> Cash Flow
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ url_for('reports.custom') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.custom' }}">
+                            <a href="{{ url_for('reports.custom_report') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.custom_report' }}">
                                 <i class="fas fa-file-alt"></i> Custom Reports
                             </a>
                         </li>
