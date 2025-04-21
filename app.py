@@ -88,3 +88,11 @@ def internal_server_error(e):
 
 # Import this after the app is created to avoid circular imports
 from flask import render_template
+from markupsafe import Markup
+
+# Register custom Jinja2 filters
+@app.template_filter('nl2br')
+def nl2br_filter(s):
+    if s is None:
+        return ""
+    return Markup(s.replace('\n', '<br>'))
