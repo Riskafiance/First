@@ -1082,3 +1082,46 @@ def transfer_asset(asset_id):
 # Set up blueprints and routes
 def setup_assets_blueprint(app):
     app.register_blueprint(fixed_assets_bp, url_prefix='/fixed-assets')
+    
+    # Initialize reference data
+    with app.app_context():
+        # Initialize Asset Statuses
+        status_names = [
+            AssetStatus.ACTIVE,
+            AssetStatus.DISPOSED,
+            AssetStatus.SOLD,
+            AssetStatus.UNDER_MAINTENANCE,
+            AssetStatus.EXPIRED
+        ]
+        for status_name in status_names:
+            if not AssetStatus.query.filter_by(name=status_name).first():
+                db.session.add(AssetStatus(name=status_name))
+                
+        # Initialize Asset Conditions
+        condition_names = [
+            AssetCondition.EXCELLENT,
+            AssetCondition.GOOD,
+            AssetCondition.FAIR,
+            'Poor',
+            'Unusable'
+        ]
+        for condition_name in condition_names:
+            if not AssetCondition.query.filter_by(name=condition_name).first():
+                db.session.add(AssetCondition(name=condition_name))
+        
+        # Initialize Asset Locations if none exist
+        if AssetLocation.query.count() == 0:
+            default_locations = [
+                {"name": "Main Office", "description": "Main office location", "address": "123 Main St"},
+                {"name": "Warehouse", "description": "Primary storage warehouse", "address": "456 Storage Ave"},
+                {"name": "Branch Office", "description": "Secondary office location", "address": "789 Branch Rd"}
+            ]
+            for loc in default_locations:
+                db.session.add(AssetLocation(
+                    name=loc["name"],
+                    description=loc["description"],
+                    address=loc["address"]
+                ))
+        
+        # Commit all changes
+        db.session.commit()
