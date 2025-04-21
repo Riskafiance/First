@@ -752,6 +752,150 @@ def generate_balance_sheet(as_of_date=None):
     
     return report_data
 
+def generate_general_ledger(start_date=None, end_date=None, account_ids=None, account_type_ids=None, include_unposted=False):
+    """Generate a general ledger report with optional filters"""
+    from models import Account, AccountType, JournalEntry, JournalItem
+    from datetime import datetime, timedelta
+    from decimal import Decimal
+    
+    # Default dates if not provided
+    if not start_date:
+        start_date = datetime.now().date().replace(day=1)
+    
+    if not end_date:
+        end_date = datetime.now().date()
+    
+    # Build account query
+    accounts_query = Account.query.filter_by(is_active=True)
+    
+    # Apply account filters if provided
+    if account_ids and len(account_ids) > 0:
+        # Convert string IDs to integers
+        account_ids = [int(id) for id in account_ids if id.isdigit()]
+        if account_ids:
+            accounts_query = accounts_query.filter(Account.id.in_(account_ids))
+    
+    # Apply account type filters if provided
+    if account_type_ids and len(account_type_ids) > 0:
+        # Convert string IDs to integers
+        account_type_ids = [int(id) for id in account_type_ids if id.isdigit()]
+        if account_type_ids:
+            accounts_query = accounts_query.filter(Account.account_type_id.in_(account_type_ids))
+    
+    # Get accounts based on filters
+    accounts = accounts_query.order_by(Account.code).all()
+    
+    # Build journal entries query for date range
+    journal_query = JournalEntry.query.filter(
+        JournalEntry.entry_date >= start_date,
+        JournalEntry.entry_date <= end_date
+    )
+    
+    # Apply posted filter unless including unposted entries
+    if not include_unposted:
+        journal_query = journal_query.filter_by(is_posted=True)
+    
+    # Get journal entries
+    journal_entries = journal_query.order_by(JournalEntry.entry_date, JournalEntry.id).all()
+    
+    # Prepare report data
+    report_data = {
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'accounts': [],
+        'totals': {
+            'debit_total': Decimal('0.00'),
+            'credit_total': Decimal('0.00')
+        }
+    }
+    
+    # For each account, gather transactions
+    for account in accounts:
+        # Get starting balance (balance at start_date - 1 day)
+        starting_balance = get_account_balance(
+            account.id, 
+            end_date=(start_date - timedelta(days=1))
+        )
+        
+        # Initialize account data
+        account_data = {
+            'id': account.id,
+            'code': account.code,
+            'name': account.name,
+            'starting_balance': starting_balance,
+            'ending_balance': starting_balance,  # Will be updated as we process entries
+            'entries': []
+        }
+        
+        # Get all journal items for this account in the period
+        journal_items = (
+            JournalItem.query
+            .join(JournalEntry)
+            .filter(
+                JournalItem.account_id == account.id,
+                JournalEntry.entry_date >= start_date,
+                JournalEntry.entry_date <= end_date
+            )
+        )
+        
+        # Apply posted filter unless including unposted entries
+        if not include_unposted:
+            journal_items = journal_items.filter(JournalEntry.is_posted == True)
+        
+        # Order by date and entry ID
+        journal_items = (
+            journal_items
+            .order_by(JournalEntry.entry_date, JournalEntry.id)
+            .all()
+        )
+        
+        # Calculate running balance and prepare entries
+        running_balance = starting_balance
+        
+        for item in journal_items:
+            # Get parent journal entry
+            entry = item.journal_entry
+            
+            # Calculate debit and credit amounts
+            debit_amount = Decimal(item.debit_amount) if item.debit_amount else Decimal('0.00')
+            credit_amount = Decimal(item.credit_amount) if item.credit_amount else Decimal('0.00')
+            
+            # Update running balance based on account type
+            # For asset and expense accounts, debits increase, credits decrease
+            # For liability, equity, and revenue accounts, credits increase, debits decrease
+            if account.account_type.name in ['Asset', 'Expense']:
+                running_balance += (debit_amount - credit_amount)
+            else:
+                running_balance += (credit_amount - debit_amount)
+            
+            # Add to report totals
+            report_data['totals']['debit_total'] += debit_amount
+            report_data['totals']['credit_total'] += credit_amount
+            
+            # Create entry data
+            entry_data = {
+                'entry_id': entry.id,
+                'entry_date': entry.entry_date,
+                'reference': entry.reference_number or f"JE-{entry.id}",
+                'entry_description': entry.description,
+                'account_code': account.code,
+                'item_description': item.description,
+                'debit_amount': debit_amount,
+                'credit_amount': credit_amount,
+                'running_balance': running_balance
+            }
+            
+            account_data['entries'].append(entry_data)
+        
+        # Update ending balance
+        account_data['ending_balance'] = running_balance
+        
+        # Only include account if it has entries or non-zero starting balance
+        if account_data['entries'] or starting_balance != 0:
+            report_data['accounts'].append(account_data)
+    
+    return report_data
+
 def generate_report_data(data, periods, account_type):
     """Generate report data with the proper structure for budgeting"""
     from decimal import Decimal

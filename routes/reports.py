@@ -2,11 +2,12 @@ from flask import Blueprint, render_template, request, Response, send_file
 from flask_login import login_required
 from app import db
 from models import AccountType, Account, JournalEntry, JournalItem
-from utils import generate_pl_report, generate_balance_sheet
+from utils import generate_pl_report, generate_balance_sheet, generate_general_ledger
 from datetime import datetime, timedelta
 import pandas as pd
 import io
 import csv
+from routes.exports import export_general_ledger_report
 
 reports_bp = Blueprint('reports', __name__)
 
