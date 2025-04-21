@@ -1,0 +1,289 @@
+{% extends 'layout.html' %}
+
+{% block title %}Purchase Order #{{ po.po_number }}{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Purchase Order #{{ po.po_number }}</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Purchase Orders
+        </a>
+        
+        {% if status and status.name in ['Draft', 'Submitted'] %}
+        <a href="#" class="btn btn-outline-primary ms-2">
+            <i class="fas fa-edit me-1"></i> Edit
+        </a>
+        {% endif %}
+        
+        <button class="btn btn-outline-success ms-2">
+            <i class="fas fa-print me-1"></i> Print
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <!-- PO Details Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Purchase Order Details</h5>
+                {% if status %}
+                <span class="badge bg-{{ 
+                    'secondary' if status.name == 'Draft' else
+                    'primary' if status.name == 'Submitted' else
+                    'info' if status.name == 'Approved' else
+                    'warning' if status.name == 'Partially Received' else
+                    'success' if status.name == 'Received' else
+                    'danger'
+                }}">{{ status.name }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">PO Number:</dt>
+                            <dd class="col-sm-8">{{ po.po_number }}</dd>
+                            
+                            <dt class="col-sm-4">Vendor:</dt>
+                            <dd class="col-sm-8">{{ vendor.name if vendor else 'N/A' }}</dd>
+                            
+                            <dt class="col-sm-4">Order Date:</dt>
+                            <dd class="col-sm-8">{{ po.order_date.strftime('%Y-%m-%d') }}</dd>
+                            
+                            <dt class="col-sm-4">Expected Delivery:</dt>
+                            <dd class="col-sm-8">{{ po.expected_delivery_date.strftime('%Y-%m-%d') if po.expected_delivery_date else 'Not specified' }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-4">Warehouse:</dt>
+                            <dd class="col-sm-8">{{ warehouse.name if warehouse else 'Not specified' }}</dd>
+                            
+                            <dt class="col-sm-4">Created By:</dt>
+                            <dd class="col-sm-8">{{ po.created_by.username if po.created_by else 'System' }}</dd>
+                            
+                            <dt class="col-sm-4">Created On:</dt>
+                            <dd class="col-sm-8">{{ po.created_at.strftime('%Y-%m-%d %H:%M') if po.created_at else 'N/A' }}</dd>
+                            
+                            <dt class="col-sm-4">Total Amount:</dt>
+                            <dd class="col-sm-8">${{ '{:,.2f}'.format(po.total_amount) }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                {% if po.shipping_address %}
+                <div class="mt-3">
+                    <h6 class="mb-2">Shipping Address</h6>
+                    <p class="mb-0">{{ po.shipping_address|nl2br }}</p>
+                </div>
+                {% endif %}
+                
+                {% if po.notes %}
+                <div class="mt-3">
+                    <h6 class="mb-2">Notes</h6>
+                    <p class="mb-0">{{ po.notes|nl2br }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Line Items Card -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Line Items</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Description</th>
+                                <th class="text-end">Qty Ordered</th>
+                                <th class="text-end">Qty Received</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Tax Rate</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    {% if item.product %}
+                                    <a href="{{ url_for('inventory.view_product', product_id=item.product.id) }}">
+                                        {{ item.product.name }}
+                                    </a>
+                                    {% else %}
+                                    Unknown Product
+                                    {% endif %}
+                                </td>
+                                <td>{{ item.description }}</td>
+                                <td class="text-end">{{ '{:,.2f}'.format(item.quantity_ordered) }}</td>
+                                <td class="text-end">{{ '{:,.2f}'.format(item.quantity_received) }}</td>
+                                <td class="text-end">${{ '{:,.2f}'.format(item.unit_price) }}</td>
+                                <td class="text-end">{{ '{:,.1f}%'.format(item.tax_rate * 100) if item.tax_rate else '0.0%' }}</td>
+                                <td class="text-end">${{ '{:,.2f}'.format(item.quantity_ordered * item.unit_price) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center">No items found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="7" class="text-end">Subtotal:</th>
+                                <th class="text-end">${{ '{:,.2f}'.format(po.total_amount) }}</th>
+                            </tr>
+                            <tr>
+                                <th colspan="7" class="text-end">Tax:</th>
+                                <th class="text-end">$0.00</th>
+                            </tr>
+                            <tr>
+                                <th colspan="7" class="text-end">Total:</th>
+                                <th class="text-end">${{ '{:,.2f}'.format(po.total_amount) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Status Actions Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Actions</h5>
+            </div>
+            <div class="card-body">
+                {% if status %}
+                    {% if status.name == 'Draft' %}
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary">
+                            <i class="fas fa-paper-plane me-1"></i> Submit for Approval
+                        </a>
+                        <a href="#" class="btn btn-outline-danger">
+                            <i class="fas fa-trash me-1"></i> Delete
+                        </a>
+                    </div>
+                    {% elif status.name == 'Submitted' %}
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-success">
+                            <i class="fas fa-check me-1"></i> Approve
+                        </a>
+                        <a href="#" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i> Return to Draft
+                        </a>
+                        <a href="#" class="btn btn-outline-danger">
+                            <i class="fas fa-times me-1"></i> Reject
+                        </a>
+                    </div>
+                    {% elif status.name == 'Approved' %}
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary">
+                            <i class="fas fa-truck me-1"></i> Record Receipt
+                        </a>
+                        <a href="#" class="btn btn-outline-danger">
+                            <i class="fas fa-ban me-1"></i> Cancel
+                        </a>
+                    </div>
+                    {% elif status.name == 'Partially Received' %}
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-primary">
+                            <i class="fas fa-truck me-1"></i> Record Receipt
+                        </a>
+                        <a href="#" class="btn btn-outline-danger">
+                            <i class="fas fa-ban me-1"></i> Cancel
+                        </a>
+                    </div>
+                    {% elif status.name == 'Received' %}
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <span class="badge bg-success fs-6 p-2">
+                                <i class="fas fa-check-circle me-1"></i> Fully Received
+                            </span>
+                        </div>
+                        <p class="mb-0 text-muted">This purchase order has been fully received and is complete.</p>
+                    </div>
+                    {% elif status.name == 'Cancelled' %}
+                    <div class="text-center">
+                        <div class="mb-3">
+                            <span class="badge bg-danger fs-6 p-2">
+                                <i class="fas fa-ban me-1"></i> Cancelled
+                            </span>
+                        </div>
+                        <p class="mb-0 text-muted">This purchase order has been cancelled.</p>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Vendor Info Card -->
+        {% if vendor %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Vendor Information</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ vendor.name }}</h6>
+                {% if vendor.contact_name %}
+                <p class="mb-1"><strong>Contact:</strong> {{ vendor.contact_name }}</p>
+                {% endif %}
+                {% if vendor.email %}
+                <p class="mb-1"><strong>Email:</strong> {{ vendor.email }}</p>
+                {% endif %}
+                {% if vendor.phone %}
+                <p class="mb-1"><strong>Phone:</strong> {{ vendor.phone }}</p>
+                {% endif %}
+                {% if vendor.address %}
+                <p class="mb-1"><strong>Address:</strong><br>{{ vendor.address|nl2br }}</p>
+                {% endif %}
+                
+                <hr>
+                
+                <a href="#" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-list me-1"></i> View All Orders
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Activity Timeline -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Activity Timeline</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge rounded-pill bg-light text-dark">
+                                    {{ po.created_at.strftime('%b %d') if po.created_at else 'Unknown' }}
+                                </span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <p class="mb-0"><strong>Purchase Order Created</strong></p>
+                                <p class="text-muted mb-0">
+                                    {{ po.created_by.username if po.created_by else 'System' }} created this purchase order.
+                                </p>
+                            </div>
+                        </div>
+                    </li>
+                    <!-- More activity items would be added dynamically based on PO history -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

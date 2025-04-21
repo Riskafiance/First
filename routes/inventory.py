@@ -1246,11 +1246,30 @@ def create_purchase_order():
     
     # Get products
     products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+
+@inventory_bp.route('/purchase-orders/<int:po_id>')
+@login_required
+def view_purchase_order(po_id):
+    """View a purchase order"""
+    purchase_order = PurchaseOrder.query.get_or_404(po_id)
+    
+    # Get items
+    items = PurchaseOrderItem.query.filter_by(po_id=po_id).all()
+    
+    # Get vendor
+    vendor = Entity.query.get(purchase_order.vendor_id) if purchase_order.vendor_id else None
+    
+    # Get warehouse
+    warehouse = Warehouse.query.get(purchase_order.warehouse_id) if purchase_order.warehouse_id else None
+    
+    # Get status
+    status = PurchaseOrderStatus.query.get(purchase_order.status_id) if purchase_order.status_id else None
     
     return render_template(
-        'inventory/purchase_order_form.html',
-        vendors=vendors,
-        warehouses=warehouses,
-        products=products,
-        today=datetime.now().strftime('%Y-%m-%d')
+        'inventory/purchase_order_view.html',
+        po=purchase_order,
+        items=items,
+        vendor=vendor,
+        warehouse=warehouse,
+        status=status
     )
