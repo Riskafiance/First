@@ -5,7 +5,7 @@
 
 {% block page_actions %}
 <div class="btn-group" role="group">
-    <a href="{{ url_for('entities.create_customer') }}" class="btn btn-primary">
+    <a href="{{ url_for('entities.create_customer') }}" class="btn btn-primary btn-lg">
         <i class="fas fa-plus me-1"></i> New Customer
     </a>
     
@@ -81,6 +81,10 @@
                                 <a href="{{ url_for('invoices.create') }}?customer_id={{ customer.id }}" class="btn btn-outline-success" title="New Invoice">
                                     <i class="fas fa-file-invoice-dollar"></i>
                                 </a>
+                                <button type="button" class="btn btn-outline-danger" title="Delete" 
+                                        onclick="confirmDelete({{ customer.id }}, '{{ customer.name|e }}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -95,4 +99,49 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Delete Customer Modal -->
+<div class="modal fade" id="deleteCustomerModal" tabindex="-1" aria-labelledby="deleteCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteCustomerModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the customer <strong id="deleteCustomerName"></strong>?</p>
+                <p class="text-danger">This action cannot be undone. All associated data will be permanently removed.</p>
+                
+                <form id="deleteCustomerForm" method="post" action="">
+                    <!-- Hidden form fields here -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="submitDeleteForm()">Delete Customer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function confirmDelete(customerId, customerName) {
+        // Set the customer name in the modal
+        document.getElementById('deleteCustomerName').textContent = customerName;
+        
+        // Set the form action URL
+        const form = document.getElementById('deleteCustomerForm');
+        form.action = "{{ url_for('entities.delete', entity_id=0) }}".replace('0', customerId);
+        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('deleteCustomerModal'));
+        modal.show();
+    }
+    
+    function submitDeleteForm() {
+        document.getElementById('deleteCustomerForm').submit();
+    }
+</script>
 {% endblock %}
