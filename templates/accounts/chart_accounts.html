@@ -226,4 +226,17 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/chart-accounts.js') }}"></script>
+<script>
+    // Check for 'new' parameter in URL and show the Add Account modal if present
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('new') === '1') {
+            const addAccountModal = new bootstrap.Modal(document.getElementById('addAccountModal'));
+            addAccountModal.show();
+            // Remove the parameter from URL without reloading
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
+    });
+</script>
 {% endblock %}
