@@ -209,12 +209,12 @@
                     </a>
                     <ul class="nav flex-column collapse nav-treeview" id="financialMenu">
                         <li class="nav-item">
-                            <a href="{{ url_for('accounts.chart_of_accounts') }}" class="nav-link {{ 'active' if request.endpoint == 'accounts.chart_of_accounts' }}">
+                            <a href="{{ url_for('accounts.index') }}" class="nav-link {{ 'active' if request.endpoint == 'accounts.index' }}">
                                 <i class="fas fa-list"></i> Chart of Accounts
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ url_for('journal.entries') }}" class="nav-link {{ 'active' if request.endpoint == 'journal.entries' }}">
+                            <a href="{{ url_for('journals.index') }}" class="nav-link {{ 'active' if request.endpoint == 'journals.index' }}">
                                 <i class="fas fa-book"></i> Journal Entries
                             </a>
                         </li>
