@@ -496,7 +496,8 @@ def edit_asset(asset_id):
                          locations=locations,
                          statuses=statuses,
                          conditions=conditions,
-                         vendors=vendors)
+                         vendors=vendors,
+                         format_currency=format_currency)
 
 @fixed_assets_bp.route('/assets/<int:asset_id>')
 @login_required
