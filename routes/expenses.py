@@ -3,8 +3,15 @@ from flask_login import login_required, current_user
 from app import db
 from models import Expense, ExpenseItem, Entity, EntityType, ExpenseStatus, Account, AccountType
 from models import JournalEntry, JournalItem, Role
-import utils
 from datetime import datetime
+import sys, os
+
+# Import functions from core_utils.py (renamed utils.py to avoid conflicts)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+sys.path.insert(0, root_dir)
+
+from core_utils import generate_expense_number
 
 expenses_bp = Blueprint('expenses', __name__)
 
@@ -74,7 +81,7 @@ def create():
             db.session.commit()
         
         # Generate expense number
-        expense_number = utils.generate_expense_number()
+        expense_number = generate_expense_number()
         
         # Create expense
         expense = Expense(
