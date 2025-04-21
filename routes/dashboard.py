@@ -5,6 +5,14 @@ from app import db
 from sqlalchemy import func, desc
 import datetime
 from decimal import Decimal
+import os, sys
+from datetime import date
+
+# Import functions from core_utils.py
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+sys.path.insert(0, root_dir)
+from core_utils import get_financial_summary, get_monthly_trends
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -30,92 +38,36 @@ def index():
         desc(JournalEntry.entry_date)
     ).limit(5).all()
     
-    # Calculate monthly income and expenses for the chart (last 6 months)
-    end_date = datetime.date.today()
-    start_date = end_date - datetime.timedelta(days=180)  # roughly 6 months
+    # Get current month's financial summary
+    today = date.today()
+    current_month_start = today.replace(day=1)
+    current_month_summary = get_financial_summary(current_month_start, today)
     
-    # Initialize income/expense data for the last 6 months
-    months = []
-    income_data = []
-    expense_data = []
+    # Get financial summaries for YTD
+    current_year_start = date(today.year, 1, 1)
+    ytd_summary = get_financial_summary(current_year_start, today)
     
-    # Get account types for income and expenses
-    income_type = AccountType.query.filter_by(name=AccountType.REVENUE).first()
-    expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
+    # Get monthly trends data for the past 6 months
+    monthly_trends = get_monthly_trends(6)
     
-    # Get all income and expense accounts
-    income_accounts = []
-    expense_accounts = []
+    # Extract data for the chart
+    months = [month_data['month'].split()[0] for month_data in monthly_trends]  # Just show the month name, not the year
+    income_data = [month_data['income'] for month_data in monthly_trends]
+    expense_data = [month_data['expenses'] for month_data in monthly_trends]
     
-    if income_type:
-        income_accounts = [account.id for account in Account.query.filter_by(account_type_id=income_type.id).all()]
+    # Ensure we have real data in the dashboard financials
+    current_month_income = current_month_summary['income']
+    current_month_expense = current_month_summary['expenses']
+    ytd_income = ytd_summary['income']
+    ytd_expense = ytd_summary['expenses']
     
-    if expense_type:
-        expense_accounts = [account.id for account in Account.query.filter_by(account_type_id=expense_type.id).all()]
-    
-    # Get monthly totals for the last 6 months
-    current_date = datetime.date.today()
-    for i in range(5, -1, -1):  # Last 6 months (5 to 0)
-        # Calculate the month start and end dates
-        month_end = current_date.replace(day=1) - datetime.timedelta(days=1) if i > 0 else current_date
-        if i > 0:
-            month_end = month_end.replace(day=1) - datetime.timedelta(days=1)
-        month_start = month_end.replace(day=1)
-        
-        # Format month name for display
-        month_name = month_start.strftime('%b')
-        months.append(month_name)
-        
-        # Sum income for this month from journal entries
-        monthly_income = Decimal('0.00')
-        if income_accounts:
-            # Find entries within the date range
-            income_entries = db.session.query(JournalEntry, JournalItem).join(
-                JournalItem, JournalEntry.id == JournalItem.journal_entry_id
-            ).filter(
-                JournalEntry.entry_date >= month_start,
-                JournalEntry.entry_date <= month_end,
-                JournalItem.account_id.in_(income_accounts),
-                JournalItem.credit_amount > 0
-            ).all()
-            
-            # Sum up the credit amounts (income)
-            for entry, item in income_entries:
-                monthly_income += item.credit_amount
-        
-        # Sum expenses for this month from journal entries
-        monthly_expense = Decimal('0.00')
-        if expense_accounts:
-            # Find entries within the date range
-            expense_entries = db.session.query(JournalEntry, JournalItem).join(
-                JournalItem, JournalEntry.id == JournalItem.journal_entry_id
-            ).filter(
-                JournalEntry.entry_date >= month_start,
-                JournalEntry.entry_date <= month_end,
-                JournalItem.account_id.in_(expense_accounts),
-                JournalItem.debit_amount > 0
-            ).all()
-            
-            # Sum up the debit amounts (expenses)
-            for entry, item in expense_entries:
-                monthly_expense += item.debit_amount
-        
-        # Add to data arrays
-        income_data.append(float(monthly_income))
-        expense_data.append(float(monthly_expense))
-        
-        # Move to the previous month
-        current_date = month_start - datetime.timedelta(days=1)
-    
-    # Calculate total current month's income and expenses
-    current_month_start = datetime.date.today().replace(day=1)
-    current_month_income = sum(income_data[-1:]) if income_data else 0
-    current_month_expense = sum(expense_data[-1:]) if expense_data else 0
-    
-    # Calculate YTD income and expenses
-    current_year_start = datetime.date(datetime.date.today().year, 1, 1)
-    ytd_income = sum(income_data) if income_data else 0
-    ytd_expense = sum(expense_data) if expense_data else 0
+    # Ensure we have arrays, even if empty
+    if not months:
+        months = [''] * 6  # Empty months for chart if no data
+    if not income_data:
+        income_data = [0] * 6  # Zero income for chart if no data
+    if not expense_data:
+        expense_data = [0] * 6  # Zero expenses for chart if no data
     
     return render_template(
         'dashboard.html',
