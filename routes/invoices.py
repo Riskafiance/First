@@ -3,10 +3,11 @@ from flask_login import login_required, current_user
 from app import db
 from models import Invoice, InvoiceItem, Entity, EntityType, InvoiceStatus, Account, AccountType
 from models import JournalEntry, JournalItem, Role
-import sys, os
+import sys, os, importlib
 # Add the project root directory to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import utils
+# Import the root utils module directly
+import utils as root_utils
 from datetime import datetime
 
 invoices_bp = Blueprint('invoices', __name__)
@@ -77,7 +78,7 @@ def create():
             db.session.commit()
         
         # Generate invoice number
-        invoice_number = utils.generate_invoice_number()
+        invoice_number = root_utils.generate_invoice_number()
         
         # Create invoice
         invoice = Invoice(
