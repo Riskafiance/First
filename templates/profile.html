@@ -1,65 +1,74 @@
 {% extends "layout.html" %}
 
-{% block title %}Profile{% endblock %}
-{% block page_title %}My Profile{% endblock %}
-
-{% block page_actions %}
-{% endblock %}
+{% block title %}User Profile{% endblock %}
+{% block page_title %}User Profile{% endblock %}
 
 {% block content %}
 <div class="row">
-    <!-- User Profile Information -->
-    <div class="col-md-8">
+    <!-- Left Column - User Profile -->
+    <div class="col-lg-6">
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title">Profile Information</h5>
             </div>
             <div class="card-body">
-                <form method="post" action="{{ url_for('auth.profile') }}">
+                <form method="post" action="{{ url_for('profile.update_profile') }}">
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="first_name" class="form-label">First Name</label>
-                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ current_user.first_name or '' }}">
-                        </div>
-                        <div class="col-md-6">
-                            <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ current_user.last_name or '' }}">
+                        <label for="username" class="col-sm-3 col-form-label">Username</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="username" value="{{ user.username }}" readonly>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input type="text" class="form-control" id="username" value="{{ current_user.username }}" readonly>
-                        <div class="form-text">Username cannot be changed</div>
+                    <div class="row mb-3">
+                        <label for="email" class="col-sm-3 col-form-label">Email</label>
+                        <div class="col-sm-9">
+                            <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email Address</label>
-                        <input type="email" class="form-control" id="email" value="{{ current_user.email }}" readonly>
-                        <div class="form-text">Email address cannot be changed</div>
+                    <div class="row mb-3">
+                        <label for="first_name" class="col-sm-3 col-form-label">First Name</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name or '' }}">
+                        </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="role" class="form-label">Role</label>
-                        <input type="text" class="form-control" id="role" value="{{ current_user.role.name if current_user.role else 'No Role Assigned' }}" readonly>
+                    <div class="row mb-3">
+                        <label for="last_name" class="col-sm-3 col-form-label">Last Name</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name or '' }}">
+                        </div>
                     </div>
                     
-                    <div class="d-grid gap-2">
+                    <div class="row mb-3">
+                        <label for="role" class="col-sm-3 col-form-label">Role</label>
+                        <div class="col-sm-9">
+                            {% if user.has_permission(64) and roles %}
+                            <select name="role_id" id="role" class="form-select">
+                                {% for role in roles %}
+                                <option value="{{ role.id }}" {% if user.role and user.role.id == role.id %}selected{% endif %}>{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                            {% else %}
+                            <input type="text" class="form-control" id="role" value="{{ user.role.name if user.role else 'No Role Assigned' }}" readonly>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="text-end">
                         <button type="submit" class="btn btn-primary">Update Profile</button>
                     </div>
                 </form>
             </div>
         </div>
-    </div>
-    
-    <!-- Change Password -->
-    <div class="col-md-4">
+        
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title">Change Password</h5>
             </div>
             <div class="card-body">
-                <form method="post" action="{{ url_for('auth.profile') }}">
+                <form method="post" action="{{ url_for('profile.change_password') }}">
                     <div class="mb-3">
                         <label for="current_password" class="form-label">Current Password</label>
                         <input type="password" class="form-control" id="current_password" name="current_password" required>
@@ -67,73 +76,95 @@
                     
                     <div class="mb-3">
                         <label for="new_password" class="form-label">New Password</label>
-                        <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8">
-                        <div class="form-text">Password must be at least 8 characters long</div>
+                        <input type="password" class="form-control" id="new_password" name="new_password" required>
                     </div>
                     
                     <div class="mb-3">
                         <label for="confirm_password" class="form-label">Confirm New Password</label>
-                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="8">
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                     </div>
                     
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-secondary">Change Password</button>
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">Change Password</button>
                     </div>
                 </form>
             </div>
         </div>
-        
-        <!-- Account Information -->
-        <div class="card">
+    </div>
+    
+    <!-- Right Column - Account Information -->
+    <div class="col-lg-6">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title">Account Information</h5>
             </div>
             <div class="card-body">
-                <p><strong>Member Since:</strong> {{ current_user.created_at.strftime('%b %d, %Y') }}</p>
+                <div class="mb-4">
+                    <h6 class="fw-bold">Member Since:</h6>
+                    <p>{{ member_since }}</p>
+                </div>
                 
-                <p class="mb-0"><strong>Permissions:</strong></p>
-                <ul class="list-unstyled ps-3">
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(1) else 'fas fa-times text-danger' }}"></i> 
-                        View Records
-                    </li>
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(2) else 'fas fa-times text-danger' }}"></i> 
-                        Create Records
-                    </li>
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(4) else 'fas fa-times text-danger' }}"></i> 
-                        Edit Records
-                    </li>
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(8) else 'fas fa-times text-danger' }}"></i> 
-                        Delete Records
-                    </li>
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(16) else 'fas fa-times text-danger' }}"></i> 
-                        Approve Records
-                    </li>
-                    <li>
-                        <i class="{{ 'fas fa-check text-success' if current_user.has_permission(32) else 'fas fa-times text-danger' }}"></i> 
-                        Administrator
-                    </li>
-                </ul>
+                <div class="mb-4">
+                    <h6 class="fw-bold">Permissions:</h6>
+                    <ul class="list-group">
+                        {% for permission in permissions %}
+                        <li class="list-group-item d-flex align-items-center">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            {{ permission }}
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No permissions assigned</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
+        
+        {% if user.has_permission(32) %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Administrator Tools</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.user_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-users-cog me-2"></i> User Management
+                    </a>
+                    <a href="{{ url_for('auth.role_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-shield me-2"></i> Role Management
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    document.getElementById('confirm_password').addEventListener('input', function() {
-        const newPassword = document.getElementById('new_password').value;
-        const confirmPassword = this.value;
-        
-        if (newPassword && confirmPassword && newPassword !== confirmPassword) {
-            this.setCustomValidity('Passwords do not match');
-        } else {
-            this.setCustomValidity('');
+    // Password validation
+    document.addEventListener('DOMContentLoaded', function() {
+        const passwordForm = document.querySelector('form[action*="change-password"]');
+        if (passwordForm) {
+            passwordForm.addEventListener('submit', function(e) {
+                const newPassword = document.getElementById('new_password').value;
+                const confirmPassword = document.getElementById('confirm_password').value;
+                
+                if (newPassword.length < 8) {
+                    e.preventDefault();
+                    alert('Password must be at least 8 characters long');
+                    return false;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    e.preventDefault();
+                    alert('New passwords do not match');
+                    return false;
+                }
+                
+                return true;
+            });
         }
     });
 </script>

@@ -3,191 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riska's Finance Enterprise - {% block title %}Accounting ERP{% endblock %}</title>
-    
-    <!-- Bootstrap CSS -->
+    <title>{% block title %}Riska's Finance Enterprise{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
-    
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Chart.js for data visualization -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
-    
-    {% block head %}{% endblock %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <style>
+        :root {
+            --sidebar-width: 250px;
+        }
+        
+        body {
+            overflow-x: hidden;
+        }
+        
+        #sidebar {
+            position: fixed;
+            width: var(--sidebar-width);
+            height: 100vh;
+            top: 0;
+            left: 0;
+            background-color: var(--bs-gray-800);
+            padding-top: 60px;
+            z-index: 100;
+            transition: all 0.3s;
+        }
+        
+        #sidebar.collapsed {
+            margin-left: calc(-1 * var(--sidebar-width));
+        }
+        
+        #sidebar .nav-link {
+            color: var(--bs-gray-300);
+            padding: 0.8rem 1rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        
+        #sidebar .nav-link i {
+            width: 24px;
+            margin-right: 10px;
+            text-align: center;
+        }
+        
+        #sidebar .nav-link:hover,
+        #sidebar .nav-link.active {
+            color: var(--bs-white);
+            background-color: var(--bs-primary);
+        }
+        
+        #sidebar .nav-item .nav-treeview {
+            margin-left: 1.5rem;
+        }
+        
+        #content {
+            margin-left: var(--sidebar-width);
+            padding: 20px;
+            width: calc(100% - var(--sidebar-width));
+            transition: all 0.3s;
+        }
+        
+        #content.expanded {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        .top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            z-index: 101;
+            background-color: var(--bs-gray-900);
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            padding: 0 1rem;
+        }
+        
+        .navbar-brand {
+            padding-left: calc(var(--sidebar-width) + 1rem);
+            transition: all 0.3s;
+        }
+        
+        .navbar-brand.sidebar-collapsed {
+            padding-left: 1rem;
+        }
+        
+        .navbar-brand img {
+            height: 40px;
+            margin-right: 10px;
+        }
+        
+        .page-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--bs-gray-800);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .main-content {
+            padding-top: 60px;
+        }
+        
+        .sidebar-toggler {
+            cursor: pointer;
+            padding: 0.5rem;
+            color: var(--bs-gray-300);
+            margin-right: 1rem;
+        }
+        
+        .dropdown-menu {
+            background-color: var(--bs-gray-800);
+            border-color: var(--bs-gray-700);
+        }
+        
+        .dropdown-item {
+            color: var(--bs-gray-300);
+        }
+        
+        .dropdown-item:hover {
+            background-color: var(--bs-gray-700);
+            color: var(--bs-white);
+        }
+        
+        @media (max-width: 768px) {
+            #sidebar {
+                margin-left: calc(-1 * var(--sidebar-width));
+            }
+            
+            #sidebar.mobile-visible {
+                margin-left: 0;
+            }
+            
+            #content {
+                margin-left: 0;
+                width: 100%;
+            }
+            
+            .navbar-brand {
+                padding-left: 1rem;
+            }
+            
+            .sidebar-backdrop {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 99;
+                display: none;
+            }
+            
+            .sidebar-backdrop.show {
+                display: block;
+            }
+        }
+    </style>
+    {% block styles %}{% endblock %}
 </head>
 <body>
-    {% if current_user.is_authenticated %}
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-2 d-none d-md-block sidebar">
-                <div class="text-center mb-4">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Riska's Finance Logo" class="img-fluid mb-2" style="max-height: 100px;">
-                    <p class="text-muted">Enterprise ERP</p>
-                </div>
-                
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'dashboard.index' %}active{% endif %}" href="{{ url_for('dashboard.index') }}">
-                            <i class="fas fa-chart-line"></i>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'accounts.index' %}active{% endif %}" href="{{ url_for('accounts.index') }}">
-                            <i class="fas fa-book"></i>
-                            <span>Chart of Accounts</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'journals.index' %}active{% endif %}" href="{{ url_for('journals.index') }}">
-                            <i class="fas fa-pen-to-square"></i>
-                            <span>Journal Entries</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'invoices.index' %}active{% endif %}" href="{{ url_for('invoices.index') }}">
-                            <i class="fas fa-file-invoice-dollar"></i>
-                            <span>Invoicing</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'expenses.index' %}active{% endif %}" href="{{ url_for('expenses.index') }}">
-                            <i class="fas fa-receipt"></i>
-                            <span>Expenses</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'inventory.' in request.endpoint %}active{% endif %}" href="{{ url_for('inventory.dashboard') }}">
-                            <i class="fas fa-boxes"></i>
-                            <span>Inventory</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'fixed_assets.' in request.endpoint %}active{% endif %}" href="{{ url_for('fixed_assets.dashboard') }}">
-                            <i class="fas fa-building"></i>
-                            <span>Fixed Assets</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'budgeting.' in request.endpoint %}active{% endif %}" href="{{ url_for('budgeting.dashboard') }}">
-                            <i class="fas fa-chart-pie"></i>
-                            <span>Budgeting</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'entities.customers' %}active{% endif %}" href="{{ url_for('entities.customers') }}">
-                            <i class="fas fa-users"></i>
-                            <span>Customers</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'entities.vendors' %}active{% endif %}" href="{{ url_for('entities.vendors') }}">
-                            <i class="fas fa-truck"></i>
-                            <span>Vendors</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'reports.index' %}active{% endif %}" href="{{ url_for('reports.index') }}">
-                            <i class="fas fa-file-alt"></i>
-                            <span>Reports</span>
-                        </a>
-                    </li>
-                    <li class="nav-item mt-4">
-                        <a class="nav-link {% if request.endpoint == 'auth.profile' %}active{% endif %}" href="{{ url_for('auth.profile') }}">
-                            <i class="fas fa-user-circle"></i>
-                            <span>Profile</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('auth.logout') }}">
-                            <i class="fas fa-sign-out-alt"></i>
-                            <span>Logout</span>
-                        </a>
-                    </li>
+    <!-- Top Navbar -->
+    <nav class="top-navbar d-flex align-items-center">
+        <div class="sidebar-toggler d-flex align-items-center" id="sidebarToggler">
+            <i class="fas fa-bars"></i>
+        </div>
+        
+        <a class="navbar-brand d-flex align-items-center me-auto" href="{{ url_for('dashboard.index') }}">
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Riska's Finance">
+            <span class="d-none d-sm-inline">Riska's Finance Enterprise</span>
+        </a>
+        
+        <div class="d-flex align-items-center">
+            <div class="dropdown">
+                <button class="btn btn-link dropdown-toggle text-light" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-user-circle me-1"></i>
+                    <span class="d-none d-md-inline">{{ current_user.username }}</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="{{ url_for('profile.view_profile') }}"><i class="fas fa-user me-2"></i> My Profile</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i> Logout</a></li>
                 </ul>
             </div>
-
-            <!-- Main content -->
-            <div class="col-md-10 ms-sm-auto main-content">
-                <div class="container-fluid mt-3">
-                    <!-- Page header -->
-                    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                        <h1 class="h2">{% block page_title %}Dashboard{% endblock %}</h1>
-                        <div class="btn-toolbar mb-2 mb-md-0">
-                            {% block page_actions %}{% endblock %}
-                        </div>
-                    </div>
-                    
-                    <!-- Flash messages -->
-                    {% with messages = get_flashed_messages(with_categories=true) %}
-                        {% if messages %}
-                            {% for category, message in messages %}
-                                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                                    {{ message }}
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                                </div>
-                            {% endfor %}
-                        {% endif %}
-                    {% endwith %}
-                    
-                    <!-- Error display -->
-                    {% if error %}
-                        <div class="alert alert-danger">
-                            {{ error }}
-                        </div>
-                    {% endif %}
-                    
-                    <!-- Main content block -->
-                    {% block content %}{% endblock %}
-                </div>
-            </div>
         </div>
-    </div>
-    {% else %}
-    <!-- Auth pages (login/register) -->
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="text-center mb-4">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Riska's Finance Logo" class="img-fluid mb-2" style="max-height: 120px;">
-                    <p class="text-muted">Accounting ERP Software</p>
-                </div>
+    </nav>
+    
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="sidebar-content">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a href="{{ url_for('dashboard.index') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard.index' }}">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
                 
-                <!-- Flash messages -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                                {{ message }}
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
+                <!-- Financial Management -->
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#financialMenu">
+                        <i class="fas fa-dollar-sign"></i> Financial
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="financialMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('accounts.chart_of_accounts') }}" class="nav-link {{ 'active' if request.endpoint == 'accounts.chart_of_accounts' }}">
+                                <i class="fas fa-list"></i> Chart of Accounts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('journal.entries') }}" class="nav-link {{ 'active' if request.endpoint == 'journal.entries' }}">
+                                <i class="fas fa-book"></i> Journal Entries
+                            </a>
+                        </li>
+                    </ul>
+                </li>
                 
-                <!-- Error display -->
-                {% if error %}
-                    <div class="alert alert-danger">
-                        {{ error }}
-                    </div>
+                <!-- Sales & Customers -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#salesMenu">
+                        <i class="fas fa-shopping-cart"></i> Sales
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="salesMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('customers.list') }}" class="nav-link {{ 'active' if request.endpoint == 'customers.list' }}">
+                                <i class="fas fa-users"></i> Customers
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('invoices.list') }}" class="nav-link {{ 'active' if request.endpoint == 'invoices.list' }}">
+                                <i class="fas fa-file-invoice-dollar"></i> Invoices
+                            </a>
+                        </li>
+                    </ul>
+                </li>
                 {% endif %}
                 
-                <!-- Auth content block -->
-                {% block auth_content %}{% endblock %}
-            </div>
+                <!-- Purchases & Vendors -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#purchasesMenu">
+                        <i class="fas fa-shopping-bag"></i> Purchases
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="purchasesMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('vendors.list') }}" class="nav-link {{ 'active' if request.endpoint == 'vendors.list' }}">
+                                <i class="fas fa-building"></i> Vendors
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('expenses.list') }}" class="nav-link {{ 'active' if request.endpoint == 'expenses.list' }}">
+                                <i class="fas fa-receipt"></i> Expenses
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Inventory Management -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#inventoryMenu">
+                        <i class="fas fa-boxes"></i> Inventory
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="inventoryMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('inventory.products') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory.products' }}">
+                                <i class="fas fa-box"></i> Products
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('inventory.stock') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory.stock' }}">
+                                <i class="fas fa-warehouse"></i> Stock Levels
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('inventory.purchase_orders') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory.purchase_orders' }}">
+                                <i class="fas fa-truck-loading"></i> Purchase Orders
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Fixed Assets -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#assetsMenu">
+                        <i class="fas fa-building"></i> Fixed Assets
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="assetsMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('assets.list') }}" class="nav-link {{ 'active' if request.endpoint == 'assets.list' }}">
+                                <i class="fas fa-list"></i> Asset Register
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('assets.depreciation') }}" class="nav-link {{ 'active' if request.endpoint == 'assets.depreciation' }}">
+                                <i class="fas fa-chart-line"></i> Depreciation
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Budgeting -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#budgetMenu">
+                        <i class="fas fa-coins"></i> Budgeting
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="budgetMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('budgeting.list') }}" class="nav-link {{ 'active' if request.endpoint == 'budgeting.list' }}">
+                                <i class="fas fa-file-invoice"></i> Budgets
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('budgeting.forecasts') }}" class="nav-link {{ 'active' if request.endpoint == 'budgeting.forecasts' }}">
+                                <i class="fas fa-chart-line"></i> Forecasts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('budgeting.variance') }}" class="nav-link {{ 'active' if request.endpoint == 'budgeting.variance' }}">
+                                <i class="fas fa-balance-scale"></i> Variance
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Reports -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu">
+                        <i class="fas fa-chart-bar"></i> Reports
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="reportsMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('reports.profit_loss') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.profit_loss' }}">
+                                <i class="fas fa-file-invoice-dollar"></i> Profit & Loss
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('reports.balance_sheet') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.balance_sheet' }}">
+                                <i class="fas fa-balance-scale"></i> Balance Sheet
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('reports.cash_flow') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.cash_flow' }}">
+                                <i class="fas fa-money-bill-wave"></i> Cash Flow
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('reports.custom') }}" class="nav-link {{ 'active' if request.endpoint == 'reports.custom' }}">
+                                <i class="fas fa-file-alt"></i> Custom Reports
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
+                <!-- Settings (Admin Only) -->
+                {% if current_user.has_permission(Role.CAN_ADMIN) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#settingsMenu">
+                        <i class="fas fa-cog"></i> Settings
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="settingsMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('auth.user_management') }}" class="nav-link {{ 'active' if request.endpoint == 'auth.user_management' }}">
+                                <i class="fas fa-users-cog"></i> User Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('auth.role_management') }}" class="nav-link {{ 'active' if request.endpoint == 'auth.role_management' }}">
+                                <i class="fas fa-user-shield"></i> Role Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('settings.company') }}" class="nav-link {{ 'active' if request.endpoint == 'settings.company' }}">
+                                <i class="fas fa-building"></i> Company Settings
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+            </ul>
         </div>
     </div>
-    {% endif %}
     
-    <!-- Bootstrap JS Bundle with Popper -->
+    <!-- Mobile Sidebar Backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+    
+    <!-- Main Content -->
+    <div id="content" class="main-content">
+        <div class="page-header">
+            <h1 class="h3">{% block page_title %}Dashboard{% endblock %}</h1>
+            <div class="page-actions">
+                {% block page_actions %}{% endblock %}
+            </div>
+        </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+        {% endwith %}
+        
+        <!-- Page Content -->
+        {% block content %}{% endblock %}
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Page-specific scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Sidebar toggling
+            const sidebar = document.getElementById('sidebar');
+            const content = document.getElementById('content');
+            const navbarBrand = document.querySelector('.navbar-brand');
+            const sidebarToggler = document.getElementById('sidebarToggler');
+            const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+            
+            function toggleSidebar() {
+                if (window.innerWidth <= 768) {
+                    // Mobile behavior
+                    sidebar.classList.toggle('mobile-visible');
+                    sidebarBackdrop.classList.toggle('show');
+                } else {
+                    // Desktop behavior
+                    sidebar.classList.toggle('collapsed');
+                    content.classList.toggle('expanded');
+                    navbarBrand.classList.toggle('sidebar-collapsed');
+                }
+            }
+            
+            sidebarToggler.addEventListener('click', toggleSidebar);
+            sidebarBackdrop.addEventListener('click', toggleSidebar);
+            
+            // On window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 768) {
+                    sidebarBackdrop.classList.remove('show');
+                    sidebar.classList.remove('mobile-visible');
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    content.classList.remove('expanded');
+                    navbarBrand.classList.remove('sidebar-collapsed');
+                }
+            });
+            
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
