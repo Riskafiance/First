@@ -40,7 +40,7 @@ def index():
     expense_data = []
     
     # Get account types for income and expenses
-    income_type = AccountType.query.filter_by(name=AccountType.INCOME).first()
+    income_type = AccountType.query.filter_by(name=AccountType.REVENUE).first()
     expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
     
     # Get all income and expense accounts

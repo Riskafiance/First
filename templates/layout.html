@@ -221,6 +221,28 @@
                     </ul>
                 </li>
                 
+                <!-- Bank Reconciliation -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#bankReconciliationMenu">
+                        <i class="fas fa-university"></i> Bank Reconciliation
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="bankReconciliationMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('bank_reconciliation.bank_accounts') }}" class="nav-link {{ 'active' if request.endpoint == 'bank_reconciliation.bank_accounts' }}">
+                                <i class="fas fa-money-check-alt"></i> Bank Accounts
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ url_for('bank_reconciliation.reconciliation_rules') }}" class="nav-link {{ 'active' if request.endpoint == 'bank_reconciliation.reconciliation_rules' }}">
+                                <i class="fas fa-cogs"></i> Reconciliation Rules
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
                 <!-- Sales & Customers -->
                 {% if current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
