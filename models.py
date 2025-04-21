@@ -253,6 +253,7 @@ class ExpenseStatus(db.Model):
     APPROVED = 'Approved'
     PAID = 'Paid'
     REJECTED = 'Rejected'
+    CANCELLED = 'Cancelled'
     
     def __repr__(self):
         return f'<ExpenseStatus {self.name}>'
@@ -274,6 +275,7 @@ class Expense(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     created_by = db.relationship('User')
+    cancellation_date = db.Column(db.Date, nullable=True)
     
     def __repr__(self):
         return f'<Expense {self.expense_number}>'

@@ -482,3 +482,99 @@ def mark_paid(expense_id):
     
     flash('Expense marked as paid. Payment has been recorded.', 'success')
     return redirect(url_for('expenses.view', expense_id=expense_id))
+
+@expenses_bp.route('/expenses/<int:expense_id>/cancel', methods=['POST'])
+@login_required
+def cancel(expense_id):
+    """Cancel an expense"""
+    # Check permission
+    if not current_user.has_permission(Role.CAN_EDIT):
+        flash('You do not have permission to cancel expenses.', 'danger')
+        return redirect(url_for('expenses.index'))
+    
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Cannot cancel paid or already cancelled expenses
+    if expense.status.name == ExpenseStatus.PAID:
+        flash('Paid expenses cannot be cancelled.', 'danger')
+        return redirect(url_for('expenses.view', expense_id=expense_id))
+    
+    if expense.status.name == 'Cancelled':
+        flash('This expense is already cancelled.', 'danger')
+        return redirect(url_for('expenses.view', expense_id=expense_id))
+    
+    # Get or create cancelled status
+    cancelled_status = ExpenseStatus.query.filter_by(name='Cancelled').first()
+    if not cancelled_status:
+        cancelled_status = ExpenseStatus(name='Cancelled')
+        db.session.add(cancelled_status)
+        db.session.flush()
+    
+    # If the expense was already approved and has a journal entry, we need to reverse it
+    if expense.status.name == ExpenseStatus.APPROVED and expense.journal_entry:
+        # Create reversing journal entry
+        journal_entry = JournalEntry(
+            entry_date=datetime.now().date(),
+            reference=f"REV-{expense.expense_number}",
+            description=f"Reversal of expense {expense.expense_number} to {expense.entity.name}",
+            is_posted=True,  # Automatically post the entry
+            created_by_id=current_user.id
+        )
+        
+        db.session.add(journal_entry)
+        db.session.flush()  # Get ID without committing
+        
+        # Add line items (reverse of the original)
+        journal_items = []
+        
+        # Get accounts for journal entries
+        liability_type = AccountType.query.filter_by(name=AccountType.LIABILITY).first()
+        expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
+        
+        if liability_type and expense_type:
+            ap_account = Account.query.filter(
+                Account.account_type_id == liability_type.id,
+                Account.name.like('%Accounts Payable%')
+            ).first()
+            
+            # Find the expense accounts used in the original journal entry
+            original_expense_items = JournalItem.query.filter(
+                JournalItem.journal_entry_id == expense.journal_entry.id,
+                JournalItem.account.has(Account.account_type_id == expense_type.id)
+            ).all()
+            
+            if not ap_account or not original_expense_items:
+                flash('Required accounts not found for reversing the expense.', 'danger')
+                return redirect(url_for('expenses.view', expense_id=expense_id))
+            
+            # Credit expense accounts (reverse of original debits)
+            for item in original_expense_items:
+                reversal_item = JournalItem(
+                    journal_entry_id=journal_entry.id,
+                    account_id=item.account_id,
+                    description=f"Reversal of expense {expense.expense_number}",
+                    debit_amount=0,
+                    credit_amount=item.debit_amount  # Reverse the original
+                )
+                journal_items.append(reversal_item)
+            
+            # Debit accounts payable (reverse of original credit)
+            ap_item = JournalItem(
+                journal_entry_id=journal_entry.id,
+                account_id=ap_account.id,
+                description=f"Reversal of expense {expense.expense_number}",
+                debit_amount=expense.total_amount,
+                credit_amount=0
+            )
+            journal_items.append(ap_item)
+            
+            # Add journal items
+            db.session.add_all(journal_items)
+    
+    # Update expense status
+    expense.status_id = cancelled_status.id
+    expense.cancellation_date = datetime.now().date()
+    db.session.commit()
+    
+    flash('Expense has been cancelled.', 'success')
+    return redirect(url_for('expenses.view', expense_id=expense_id))

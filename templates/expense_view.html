@@ -78,6 +78,11 @@
                     <span class="badge bg-success">Paid</span>
                     {% elif expense.status.name == 'Rejected' %}
                     <span class="badge bg-danger">Rejected</span>
+                    {% elif expense.status.name == 'Cancelled' %}
+                    <span class="badge bg-dark">Cancelled</span>
+                    {% if expense.cancellation_date %}
+                    <small class="d-block text-muted mt-1">on {{ expense.cancellation_date.strftime('%b %d, %Y') }}</small>
+                    {% endif %}
                     {% else %}
                     <span class="badge bg-dark">{{ expense.status.name }}</span>
                     {% endif %}
