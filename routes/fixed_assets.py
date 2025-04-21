@@ -7,13 +7,13 @@ from decimal import Decimal
 import json
 
 from app import db
+import utils
 from models import (
     Account, AccountType, JournalEntry, JournalItem, Entity, EntityType,
     AssetCategory, AssetLocation, AssetStatus, AssetCondition, FixedAsset,
     AssetDepreciation, MaintenanceType, AssetMaintenance, AssetDisposal,
     AssetTransfer, AssetDocument
 )
-import utils
 
 fixed_assets_bp = Blueprint('fixed_assets', __name__)
 
