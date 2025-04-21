@@ -13,7 +13,7 @@ from models import (
     AssetDepreciation, MaintenanceType, AssetMaintenance, AssetDisposal,
     AssetTransfer, AssetDocument
 )
-from utils import format_currency, generate_asset_number, get_next_sequence
+import utils
 
 fixed_assets_bp = Blueprint('fixed_assets', __name__)
 
@@ -288,7 +288,7 @@ def dashboard():
                          condition_counts=json.dumps(condition_counts),
                          recent_assets=recent_assets,
                          upcoming_maintenance=upcoming_maintenance,
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 #
 # Fixed Assets List and Management
@@ -298,7 +298,7 @@ def dashboard():
 def assets():
     """Display all fixed assets"""
     assets = FixedAsset.query.all()
-    return render_template('fixed_assets/assets.html', assets=assets, format_currency=format_currency)
+    return render_template('fixed_assets/assets.html', assets=assets, format_currency=utils.format_currency)
 
 @fixed_assets_bp.route('/assets/add', methods=['GET', 'POST'])
 @login_required
@@ -329,7 +329,7 @@ def add_asset():
         
         try:
             # Generate asset number
-            asset_number = generate_asset_number()
+            asset_number = utils.generate_asset_number()
             
             # Convert date strings to date objects
             acquisition_date = datetime.strptime(acquisition_date, '%Y-%m-%d').date() if acquisition_date else None
@@ -497,7 +497,7 @@ def edit_asset(asset_id):
                          statuses=statuses,
                          conditions=conditions,
                          vendors=vendors,
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 @fixed_assets_bp.route('/assets/<int:asset_id>')
 @login_required
@@ -525,7 +525,7 @@ def asset_detail(asset_id):
                          total_depreciation=total_depreciation,
                          monthly_depreciation=monthly_depreciation,
                          remaining_useful_life=remaining_useful_life,
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 #
 # Asset Depreciation
@@ -651,7 +651,7 @@ def record_depreciation(asset_id):
                          suggested_amount=suggested_amount,
                          current_date=date.today().strftime('%Y-%m-%d'),
                          current_book_value=asset.get_current_book_value(),
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 #
 # Asset Maintenance
@@ -663,7 +663,7 @@ def maintenance_list():
     maintenance_records = AssetMaintenance.query.order_by(AssetMaintenance.date.desc()).all()
     return render_template('fixed_assets/maintenance_list.html', 
                          maintenance_records=maintenance_records,
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 @fixed_assets_bp.route('/assets/<int:asset_id>/add-maintenance', methods=['GET', 'POST'])
 @login_required
@@ -789,7 +789,7 @@ def add_maintenance(asset_id):
                          expense_accounts=expense_accounts,
                          conditions=conditions,
                          current_date=date.today().strftime('%Y-%m-%d'),
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 #
 # Asset Disposal
@@ -1012,7 +1012,7 @@ def dispose_asset(asset_id):
                          customers=customers,
                          current_date=date.today().strftime('%Y-%m-%d'),
                          current_book_value=asset.get_current_book_value(),
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 #
 # Asset Transfer
@@ -1081,7 +1081,7 @@ def transfer_asset(asset_id):
                          current_location=current_location,
                          locations=locations,
                          current_date=date.today().strftime('%Y-%m-%d'),
-                         format_currency=format_currency)
+                         format_currency=utils.format_currency)
 
 # Set up blueprints and routes
 def setup_assets_blueprint(app):

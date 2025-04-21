@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, Response, send_file
 from flask_login import login_required
 from app import db
 from models import AccountType, Account, JournalEntry, JournalItem
-from utils import generate_pl_report, generate_balance_sheet, generate_general_ledger
+import utils
 from datetime import datetime, timedelta
 import pandas as pd
 import io
@@ -37,7 +37,7 @@ def pl():
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
     
     # Generate report
-    report_data = generate_pl_report(start_date, end_date)
+    report_data = utils.generate_pl_report(start_date, end_date)
     
     return render_template(
         'report_pl.html',
@@ -60,7 +60,7 @@ def balance_sheet():
         as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
     
     # Generate report
-    report_data = generate_balance_sheet(as_of_date)
+    report_data = utils.generate_balance_sheet(as_of_date)
     
     return render_template(
         'report_balance_sheet.html',
@@ -100,7 +100,7 @@ def custom_report():
     report_data = None
     if request.args:  # Only generate report if filters are submitted
         if report_type == 'general_ledger':
-            report_data = generate_general_ledger(
+            report_data = utils.generate_general_ledger(
                 start_date, 
                 end_date, 
                 account_ids, 
@@ -147,7 +147,7 @@ def export_report():
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         
         # Generate P&L report
-        report_data = generate_pl_report(start_date, end_date)
+        report_data = utils.generate_pl_report(start_date, end_date)
         return export_pl_report(report_data, export_format)
     
     elif report_type == 'bs':
@@ -161,7 +161,7 @@ def export_report():
             as_of_date = datetime.strptime(as_of_date, '%Y-%m-%d').date()
         
         # Generate Balance Sheet report
-        report_data = generate_balance_sheet(as_of_date)
+        report_data = utils.generate_balance_sheet(as_of_date)
         return export_balance_sheet_report(report_data, export_format)
     
     elif report_type == 'custom':
@@ -186,7 +186,7 @@ def export_report():
         
         # Generate report based on type
         if custom_report_type == 'general_ledger':
-            report_data = generate_general_ledger(
+            report_data = utils.generate_general_ledger(
                 start_date, 
                 end_date, 
                 account_ids, 
@@ -402,82 +402,47 @@ def export_balance_sheet_report(report_data, format='csv'):
                 'align': 'center'
             })
             
+            # Write assets sheet
+            assets_df.to_excel(writer, sheet_name='Balance Sheet', startrow=3, startcol=0, index=False)
+            
             # Get the worksheet
-            worksheet = writer.sheets.get('Sheet1') or workbook.add_worksheet('Balance Sheet')
+            worksheet = writer.sheets['Balance Sheet']
             
             # Write headers
             worksheet.write(0, 0, 'Balance Sheet', header_format)
             worksheet.write(1, 0, f"As of: {report_data['as_of_date']}")
+            worksheet.write(2, 0, 'Assets', workbook.add_format({'bold': True}))
             
-            # Write assets section
-            row = 3
-            worksheet.write(row, 0, 'Assets', workbook.add_format({'bold': True}))
-            row += 1
-            worksheet.write(row, 0, 'Account Code')
-            worksheet.write(row, 1, 'Account Name')
-            worksheet.write(row, 2, 'Amount')
-            row += 1
+            # Write assets total
+            assets_total_row = len(assets_df) + 3
+            worksheet.write(assets_total_row, 0, 'Total Assets')
+            worksheet.write(assets_total_row, 2, report_data['totals']['assets'])
             
-            # Write asset rows
-            for asset in report_data['assets']:
-                worksheet.write(row, 0, asset['account_code'])
-                worksheet.write(row, 1, asset['account_name'])
-                worksheet.write(row, 2, float(asset['balance']))
-                row += 1
+            # Write liabilities header
+            worksheet.write(assets_total_row + 2, 0, 'Liabilities', workbook.add_format({'bold': True}))
             
-            # Write asset total
-            worksheet.write(row, 1, 'Total Assets', workbook.add_format({'bold': True}))
-            worksheet.write(row, 2, float(report_data['totals']['assets']))
-            row += 2
+            # Write liabilities data
+            liabilities_df.to_excel(writer, sheet_name='Balance Sheet', startrow=assets_total_row + 3, startcol=0, index=False)
             
-            # Write liabilities section
-            worksheet.write(row, 0, 'Liabilities', workbook.add_format({'bold': True}))
-            row += 1
-            worksheet.write(row, 0, 'Account Code')
-            worksheet.write(row, 1, 'Account Name')
-            worksheet.write(row, 2, 'Amount')
-            row += 1
+            # Write liabilities total
+            liabilities_total_row = assets_total_row + 3 + len(liabilities_df)
+            worksheet.write(liabilities_total_row, 0, 'Total Liabilities')
+            worksheet.write(liabilities_total_row, 2, report_data['totals']['liabilities'])
             
-            # Write liability rows
-            for liability in report_data['liabilities']:
-                worksheet.write(row, 0, liability['account_code'])
-                worksheet.write(row, 1, liability['account_name'])
-                worksheet.write(row, 2, float(liability['balance']))
-                row += 1
+            # Write equity header
+            worksheet.write(liabilities_total_row + 2, 0, 'Equity', workbook.add_format({'bold': True}))
             
-            # Write liability total
-            worksheet.write(row, 1, 'Total Liabilities', workbook.add_format({'bold': True}))
-            worksheet.write(row, 2, float(report_data['totals']['liabilities']))
-            row += 2
-            
-            # Write equity section
-            worksheet.write(row, 0, 'Equity', workbook.add_format({'bold': True}))
-            row += 1
-            worksheet.write(row, 0, 'Account Code')
-            worksheet.write(row, 1, 'Account Name')
-            worksheet.write(row, 2, 'Amount')
-            row += 1
-            
-            # Write equity rows
-            for equity_item in report_data['equity']:
-                worksheet.write(row, 0, equity_item['account_code'])
-                worksheet.write(row, 1, equity_item['account_name'])
-                worksheet.write(row, 2, float(equity_item['balance']))
-                row += 1
+            # Write equity data
+            equity_df.to_excel(writer, sheet_name='Balance Sheet', startrow=liabilities_total_row + 3, startcol=0, index=False)
             
             # Write equity total
-            worksheet.write(row, 1, 'Total Equity', workbook.add_format({'bold': True}))
-            worksheet.write(row, 2, float(report_data['totals']['equity']))
-            row += 2
+            equity_total_row = liabilities_total_row + 3 + len(equity_df)
+            worksheet.write(equity_total_row, 0, 'Total Equity')
+            worksheet.write(equity_total_row, 2, report_data['totals']['equity'])
             
             # Write total liabilities and equity
-            worksheet.write(row, 1, 'Total Liabilities and Equity', workbook.add_format({'bold': True}))
-            worksheet.write(row, 2, float(report_data['totals']['liabilities_and_equity']))
-            
-            # Format column widths
-            worksheet.set_column(0, 0, 15)  # Account code column
-            worksheet.set_column(1, 1, 30)  # Account name column
-            worksheet.set_column(2, 2, 15)  # Amount column
+            worksheet.write(equity_total_row + 2, 0, 'Total Liabilities and Equity', workbook.add_format({'bold': True}))
+            worksheet.write(equity_total_row + 2, 2, report_data['totals']['liabilities_and_equity'])
         
         # Reset pointer
         output.seek(0)

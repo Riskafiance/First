@@ -6,10 +6,7 @@ from models import (
     Forecast, ForecastItem, Account, AccountType, Role,
     JournalEntry, JournalItem
 )
-from utils import (
-    generate_report_data, month_name, quarter_name,
-    get_account_balance
-)
+import utils
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import calendar
@@ -39,7 +36,7 @@ def generate_budget_periods(period_type, year):
         for month in range(1, 13):
             periods.append({
                 'period': month,
-                'name': month_name(month),
+                'name': utils.month_name(month),
                 'start_date': date(year, month, 1),
                 'end_date': date(year, month, calendar.monthrange(year, month)[1])
             })
@@ -106,7 +103,7 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
                 continue
             
             # Get actual amounts from journal entries
-            actual_amount = get_account_balance(
+            actual_amount = utils.get_account_balance(
                 account.id, 
                 period_start, 
                 period_end

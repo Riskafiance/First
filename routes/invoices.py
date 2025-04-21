@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from models import Invoice, InvoiceItem, Entity, EntityType, InvoiceStatus, Account, AccountType
 from models import JournalEntry, JournalItem, Role
-from utils import generate_invoice_number
+import utils
 from datetime import datetime
 
 invoices_bp = Blueprint('invoices', __name__)
@@ -74,7 +74,7 @@ def create():
             db.session.commit()
         
         # Generate invoice number
-        invoice_number = generate_invoice_number()
+        invoice_number = utils.generate_invoice_number()
         
         # Create invoice
         invoice = Invoice(

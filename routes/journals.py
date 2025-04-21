@@ -5,7 +5,7 @@ from models import JournalEntry, JournalItem, Account, Role
 from datetime import datetime
 import csv
 from io import StringIO
-from utils import export_journal_entries_to_csv
+import utils
 
 journals_bp = Blueprint('journals', __name__)
 
@@ -281,7 +281,7 @@ def export_csv():
     end_date = datetime.strptime(end_date, '%Y-%m-%d').date() if end_date else None
     
     # Get entries and items
-    entries_df, items_df = export_journal_entries_to_csv(start_date, end_date)
+    entries_df, items_df = utils.export_journal_entries_to_csv(start_date, end_date)
     
     # Create CSV output
     output = StringIO()

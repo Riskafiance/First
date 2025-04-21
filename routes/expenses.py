@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from models import Expense, ExpenseItem, Entity, EntityType, ExpenseStatus, Account, AccountType
 from models import JournalEntry, JournalItem, Role
-from utils import generate_expense_number
+import utils
 from datetime import datetime
 
 expenses_bp = Blueprint('expenses', __name__)
@@ -74,7 +74,7 @@ def create():
             db.session.commit()
         
         # Generate expense number
-        expense_number = generate_expense_number()
+        expense_number = utils.generate_expense_number()
         
         # Create expense
         expense = Expense(

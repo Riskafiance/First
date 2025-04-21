@@ -7,10 +7,7 @@ from models import (
     PurchaseOrderItem, Entity, EntityType, Account, AccountType, Role,
     JournalEntry, JournalItem
 )
-from utils import (
-    generate_product_sku, generate_po_number, record_inventory_transaction,
-    get_inventory_value, get_low_stock_products
-)
+import utils
 from datetime import datetime, timedelta
 from sqlalchemy import func
 
@@ -21,7 +18,7 @@ inventory_bp = Blueprint('inventory', __name__)
 def dashboard():
     """Inventory dashboard"""
     # Get inventory overview
-    inventory_value = get_inventory_value()
+    inventory_value = utils.get_inventory_value()
     
     # Get product categories
     categories = ProductCategory.query.order_by(ProductCategory.name).all()
@@ -48,7 +45,7 @@ def dashboard():
     category_counts = sorted(category_counts, key=lambda x: x[1], reverse=True)
     
     # Get low stock products
-    low_stock = get_low_stock_products()
+    low_stock = utils.get_low_stock_products()
     
     # Get purchase order status counts
     statuses = PurchaseOrderStatus.query.all()
@@ -396,7 +393,7 @@ def create_product():
         
         # Generate SKU if not provided
         if not sku:
-            sku = generate_product_sku(name, category_id)
+            sku = utils.generate_product_sku(name, category_id)
         
         # Validate SKU uniqueness
         existing_product = Product.query.filter_by(sku=sku).first()
@@ -778,7 +775,7 @@ def adjust_inventory(product_id):
             db.session.add_all(journal_items)
         
         # Record inventory transaction
-        record_inventory_transaction(
+        utils.record_inventory_transaction(
             product_id=product.id,
             quantity=quantity,
             transaction_type=transaction_type,
@@ -973,7 +970,7 @@ def export_stock_valuation():
 def low_stock_report():
     """Low stock report"""
     # Get low stock products
-    low_stock = get_low_stock_products()
+    low_stock = utils.get_low_stock_products()
     
     # Get warehouses for filter
     warehouses = Warehouse.query.filter_by(is_active=True).order_by(Warehouse.name).all()
@@ -1112,7 +1109,7 @@ def create_purchase_order():
             db.session.commit()
         
         # Generate PO number
-        po_number = generate_po_number()
+        po_number = utils.generate_po_number()
         
         # Create purchase order
         purchase_order = PurchaseOrder(
