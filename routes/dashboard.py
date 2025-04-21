@@ -27,7 +27,7 @@ def index():
     
     # Get recent journal entries (last 5)
     recent_journals = JournalEntry.query.order_by(
-        desc(JournalEntry.date)
+        desc(JournalEntry.entry_date)
     ).limit(5).all()
     
     # Calculate monthly income and expenses for the chart (last 6 months)
@@ -70,8 +70,8 @@ def index():
         monthly_income = Decimal('0.00')
         if income_accounts:
             income_entries = JournalEntry.query.filter(
-                JournalEntry.date >= month_start,
-                JournalEntry.date <= month_end,
+                JournalEntry.entry_date >= month_start,
+                JournalEntry.entry_date <= month_end,
                 JournalEntry.credit_account_id.in_(income_accounts)
             ).all()
             

@@ -1,0 +1,78 @@
+{% extends "layout.html" %}
+
+{% block title %}Reconciliation Rules - Riska's Finance Enterprise{% endblock %}
+{% block page_title %}Reconciliation Rules{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Reconciliation Rules</h5>
+        {% if current_user.has_permission(Role.CAN_CREATE) %}
+        <a href="{{ url_for('bank_reconciliation.add_rule') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> Add Rule
+        </a>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-4">
+            <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i> About Reconciliation Rules</h5>
+            <p>Reconciliation rules help you automate the matching of bank transactions with your general ledger accounts. These rules are based on transaction descriptions.</p>
+            <p class="mb-0">For example, you can create a rule to automatically match all transactions containing "PAYROLL" with your Salary Expense account.</p>
+        </div>
+        
+        {% if rules %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Rule Name</th>
+                        <th>Bank Account</th>
+                        <th>Match Pattern</th>
+                        <th>GL Account</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rule in rules %}
+                    <tr>
+                        <td>{{ rule.name }}</td>
+                        <td>{{ rule.bank_account.name }}</td>
+                        <td><code>{{ rule.match_pattern }}</code></td>
+                        <td>{{ rule.gl_account.code }} - {{ rule.gl_account.name }}</td>
+                        <td>
+                            {% if rule.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if current_user.has_permission(Role.CAN_EDIT) %}
+                            <a href="{{ url_for('bank_reconciliation.edit_rule', rule_id=rule.id) }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i> No reconciliation rules found. 
+            {% if current_user.has_permission(Role.CAN_CREATE) %}
+            <a href="{{ url_for('bank_reconciliation.add_rule') }}" class="alert-link">Add your first rule</a> to automate the reconciliation process.
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="mt-4">
+            <a href="{{ url_for('bank_reconciliation.bank_accounts') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Bank Accounts
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

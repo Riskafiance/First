@@ -1,0 +1,67 @@
+{% extends "layout.html" %}
+
+{% block title %}Add Reconciliation Rule - Riska's Finance Enterprise{% endblock %}
+{% block page_title %}Add Reconciliation Rule{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Add Reconciliation Rule</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info mb-4">
+                    <p><i class="fas fa-info-circle me-2"></i> Reconciliation rules help automatically match bank transactions with your general ledger accounts based on transaction descriptions.</p>
+                </div>
+                
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Rule Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">Enter a descriptive name for this rule (e.g., "Payroll Transactions", "Office Rent").</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bank_account_id" class="form-label">Bank Account <span class="text-danger">*</span></label>
+                        <select class="form-select" id="bank_account_id" name="bank_account_id" required>
+                            <option value="">-- Select Bank Account --</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}">{{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select the bank account this rule applies to.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="match_pattern" class="form-label">Match Pattern <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="match_pattern" name="match_pattern" required>
+                        <div class="form-text">Enter text that appears in the transaction description (e.g., "PAYROLL", "RENT PAYMENT").</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="gl_account_id" class="form-label">GL Account <span class="text-danger">*</span></label>
+                        <select class="form-select" id="gl_account_id" name="gl_account_id" required>
+                            <option value="">-- Select GL Account --</option>
+                            {% for account in gl_accounts %}
+                            <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Select the general ledger account that transactions should be matched with.</div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('bank_reconciliation.reconciliation_rules') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i> Back to Rules
+                        </a>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save Rule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
