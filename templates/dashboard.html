@@ -1,232 +1,93 @@
 {% extends "layout.html" %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Dashboard - Riska's Finance Enterprise{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
-
-{% block page_actions %}
-<form method="get" class="form-inline">
-    <div class="input-group">
-        <select class="form-select" id="dashboardDateRange" name="period">
-            <option value="today" {% if period == 'today' %}selected{% endif %}>Today</option>
-            <option value="week" {% if period == 'week' %}selected{% endif %}>This Week</option>
-            <option value="month" {% if period == 'month' %}selected{% endif %}>This Month</option>
-            <option value="quarter" {% if period == 'quarter' %}selected{% endif %}>This Quarter</option>
-            <option value="year" {% if period == 'year' %}selected{% endif %}>This Year</option>
-        </select>
-        <button type="submit" class="btn btn-outline-secondary">
-            <i class="fas fa-filter"></i>
-        </button>
-    </div>
-</form>
-{% endblock %}
 
 {% block content %}
 <div class="row">
-    <!-- Financial Summary Cards -->
-    <div class="col-md-3 mb-4">
-        <div class="card dashboard-card bg-success bg-opacity-25 text-white h-100">
-            <div class="card-body">
-                <h6 class="card-title text-white-50">Total Income</h6>
-                <h3 class="card-text">${{ "{:,.2f}".format(summary.income) }}</h3>
-                <p class="card-text text-white-50">
-                    {% if period == 'today' %}Today{% elif period == 'week' %}This Week{% elif period == 'month' %}This Month{% elif period == 'quarter' %}This Quarter{% else %}This Year{% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card dashboard-card bg-danger bg-opacity-25 text-white h-100">
-            <div class="card-body">
-                <h6 class="card-title text-white-50">Total Expenses</h6>
-                <h3 class="card-text">${{ "{:,.2f}".format(summary.expenses) }}</h3>
-                <p class="card-text text-white-50">
-                    {% if period == 'today' %}Today{% elif period == 'week' %}This Week{% elif period == 'month' %}This Month{% elif period == 'quarter' %}This Quarter{% else %}This Year{% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card dashboard-card bg-primary bg-opacity-25 text-white h-100">
-            <div class="card-body">
-                <h6 class="card-title text-white-50">Net Income</h6>
-                <h3 class="card-text">${{ "{:,.2f}".format(summary.net_income) }}</h3>
-                <p class="card-text text-white-50">
-                    {% if period == 'today' %}Today{% elif period == 'week' %}This Week{% elif period == 'month' %}This Month{% elif period == 'quarter' %}This Quarter{% else %}This Year{% endif %}
-                </p>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3 mb-4">
-        <div class="card dashboard-card bg-info bg-opacity-25 text-white h-100">
-            <div class="card-body">
-                <h6 class="card-title text-white-50">Accounts Receivable</h6>
-                <h3 class="card-text">${{ "{:,.2f}".format(summary.accounts_receivable) }}</h3>
-                <p class="card-text text-white-50">Outstanding Invoices</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Financial Summary Chart -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title">Income vs. Expenses</h5>
-            </div>
-            <div class="card-body">
-                <div style="height: 300px;">
-                    <canvas id="financialSummaryChart" data-summary="{{ summary | tojson }}"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Monthly Trends Chart -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header">
-                <h5 class="card-title">Monthly Trends</h5>
-            </div>
-            <div class="card-body">
-                <div style="height: 300px;">
-                    <canvas id="monthlyTrendsChart" data-trends="{{ monthly_trends | tojson }}"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <!-- Recent Invoices -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title">Recent Invoices</h5>
-                <a href="{{ url_for('invoices.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body">
-                {% if recent_invoices %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Invoice #</th>
-                                <th>Customer</th>
-                                <th>Date</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for invoice in recent_invoices %}
-                            <tr>
-                                <td><a href="{{ url_for('invoices.view', invoice_id=invoice.id) }}">{{ invoice.invoice_number }}</a></td>
-                                <td>{{ invoice.entity.name }}</td>
-                                <td>{{ invoice.issue_date.strftime('%b %d, %Y') }}</td>
-                                <td>${{ "{:,.2f}".format(invoice.total_amount) }}</td>
-                                <td>
-                                    {% if invoice.status.name == 'Draft' %}
-                                    <span class="badge bg-secondary">Draft</span>
-                                    {% elif invoice.status.name == 'Sent' %}
-                                    <span class="badge bg-primary">Sent</span>
-                                    {% elif invoice.status.name == 'Paid' %}
-                                    <span class="badge bg-success">Paid</span>
-                                    {% elif invoice.status.name == 'Overdue' %}
-                                    <span class="badge bg-danger">Overdue</span>
-                                    {% else %}
-                                    <span class="badge bg-dark">{{ invoice.status.name }}</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-center text-muted">No recent invoices</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    
-    <!-- Recent Journal Entries -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title">Recent Journal Entries</h5>
-                <a href="{{ url_for('journals.index') }}" class="btn btn-sm btn-outline-primary">View All</a>
-            </div>
-            <div class="card-body">
-                {% if recent_journals %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Reference</th>
-                                <th>Description</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for journal in recent_journals %}
-                            <tr>
-                                <td>{{ journal.entry_date.strftime('%b %d, %Y') }}</td>
-                                <td><a href="{{ url_for('journals.view', journal_id=journal.id) }}">{{ journal.reference or 'JE-' + journal.id|string }}</a></td>
-                                <td>{{ journal.description or 'N/A' }}</td>
-                                <td>
-                                    {% if journal.is_posted %}
-                                    <span class="badge bg-success">Posted</span>
-                                    {% else %}
-                                    <span class="badge bg-warning">Draft</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-center text-muted">No recent journal entries</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Quick Actions -->
-<div class="row mb-4">
-    <div class="col-12">
+    <!-- Welcome Card -->
+    <div class="col-12 mb-4">
         <div class="card">
+            <div class="card-body">
+                <h4 class="mb-3">Welcome, {{ current_user.first_name or current_user.username }}!</h4>
+                <p class="text-muted">Welcome to Riska's Finance Enterprise, your comprehensive accounting and financial management platform.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Permissions Card -->
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card h-100">
             <div class="card-header">
-                <h5 class="card-title">Quick Actions</h5>
+                <h5 class="card-title">Your Permissions</h5>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('invoices.create') }}" class="btn btn-primary btn-lg d-block">
-                            <i class="fas fa-file-invoice-dollar me-2"></i> New Invoice
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('journals.create') }}" class="btn btn-success btn-lg d-block">
-                            <i class="fas fa-pen-to-square me-2"></i> New Journal Entry
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('entities.create_customer') }}" class="btn btn-info btn-lg d-block">
-                            <i class="fas fa-user-plus me-2"></i> New Customer
-                        </a>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <a href="{{ url_for('reports.pl') }}" class="btn btn-secondary btn-lg d-block">
-                            <i class="fas fa-chart-line me-2"></i> P&L Report
-                        </a>
-                    </div>
+                <ul class="list-group">
+                    {% for permission in permissions %}
+                    <li class="list-group-item d-flex align-items-center">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        {{ permission }}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No permissions assigned</li>
+                    {% endfor %}
+                </ul>
+                
+                <div class="mt-3">
+                    <a href="{{ url_for('profile.view_profile') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-user me-1"></i> View Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Card (only visible to admins) -->
+    {% if current_user.has_permission(Role.CAN_ADMIN) %}
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card h-100 border-primary">
+            <div class="card-header">
+                <h5 class="card-title">Administrator Tools</h5>
+            </div>
+            <div class="card-body">
+                <p>As an administrator, you have full access to manage users and roles.</p>
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('auth.user_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-users-cog me-2"></i> User Management
+                    </a>
+                    <a href="{{ url_for('auth.role_management') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-shield me-2"></i> Role Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Links -->
+    <div class="col-md-6 col-xl-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title">Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    <a href="{{ url_for('accounts.chart_of_accounts') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <i class="fas fa-list me-3"></i>
+                        <span>Chart of Accounts</span>
+                    </a>
+                    <a href="{{ url_for('journal.entries') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <i class="fas fa-book me-3"></i>
+                        <span>Journal Entries</span>
+                    </a>
+                    <a href="{{ url_for('reports.balance_sheet') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <i class="fas fa-balance-scale me-3"></i>
+                        <span>Balance Sheet</span>
+                    </a>
+                    <a href="{{ url_for('reports.profit_loss') }}" class="list-group-item list-group-item-action d-flex align-items-center">
+                        <i class="fas fa-chart-line me-3"></i>
+                        <span>Profit & Loss</span>
+                    </a>
                 </div>
             </div>
         </div>
@@ -235,5 +96,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    // Dashboard specific scripts can be added here
+</script>
 {% endblock %}

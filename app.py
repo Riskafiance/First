@@ -42,8 +42,27 @@ login_manager.login_message_category = 'info'
 # Create database tables
 with app.app_context():
     import models  # noqa: F401
-    from models import User
+    from models import User, Role
     db.create_all()
+    
+    # Create default roles
+    Role.insert_roles()
+    
+    # Create a default admin user if none exists
+    if not User.query.filter_by(username='admin').first():
+        admin_role = Role.query.filter_by(name='Admin').first()
+        if admin_role:
+            admin = User(
+                username='admin',
+                email='admin@riskasfinance.com',
+                first_name='System',
+                last_name='Admin',
+                role=admin_role
+            )
+            admin.set_password('adminpassword')
+            db.session.add(admin)
+            db.session.commit()
+            print("Created default admin user: admin / adminpassword")
     
     # Setup user loader for Flask-Login
     @login_manager.user_loader
@@ -52,6 +71,7 @@ with app.app_context():
 
 # Import and register blueprint routes
 from routes.auth import auth_bp
+from routes.profile import profile_bp
 from routes.dashboard import dashboard_bp
 from routes.accounts import accounts_bp
 from routes.journals import journals_bp
@@ -64,6 +84,7 @@ from routes.fixed_assets import setup_assets_blueprint
 from routes.budgeting import budgeting_bp
 
 app.register_blueprint(auth_bp)
+app.register_blueprint(profile_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(accounts_bp)
 app.register_blueprint(journals_bp)
@@ -96,3 +117,10 @@ def nl2br_filter(s):
     if s is None:
         return ""
     return Markup(s.replace('\n', '<br>'))
+
+# Add context processors
+@app.context_processor
+def inject_role():
+    """Make Role model available in all templates"""
+    from models import Role
+    return {'Role': Role}
