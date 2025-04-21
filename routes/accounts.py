@@ -25,7 +25,7 @@ def index():
     account_types = AccountType.query.all()
     
     return render_template(
-        'chart_accounts.html',
+        'accounts/chart_accounts.html',
         accounts=accounts,
         account_types=account_types
     )
@@ -109,7 +109,7 @@ def edit(account_id):
     accounts = Account.query.filter(Account.id != account_id).order_by(Account.code).all()
     
     return render_template(
-        'chart_accounts.html',
+        'accounts/chart_accounts.html',
         account=account,
         account_types=account_types,
         accounts=accounts,
