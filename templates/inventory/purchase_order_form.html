@@ -1,331 +1,321 @@
-{% extends "layout.html" %}
+{% extends 'layout.html' %}
 
-{% block title %}{{ 'Edit' if purchase_order else 'Create' }} Purchase Order{% endblock %}
-{% block page_title %}{{ 'Edit' if purchase_order else 'Create' }} Purchase Order{% endblock %}
+{% block title %}Create Purchase Order{% endblock %}
 
-{% block page_actions %}
-<div class="btn-group" role="group">
-    <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-left me-1"></i> Back to Purchase Orders
-    </a>
-</div>
-{% endblock %}
-
-{% block content %}
-<div class="card">
-    <div class="card-body">
-        <form method="post" id="poForm">
-            <div class="row mb-4">
-                <!-- Left Column -->
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="vendor_id" class="form-label">Vendor <span class="text-danger">*</span></label>
-                        <select class="form-select" id="vendor_id" name="vendor_id" required>
-                            <option value="">Select Vendor</option>
-                            {% for vendor in vendors %}
-                            <option value="{{ vendor.id }}" {% if purchase_order and purchase_order.vendor_id == vendor.id %}selected{% endif %}>
-                                {{ vendor.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="warehouse_id" class="form-label">Destination Warehouse <span class="text-danger">*</span></label>
-                        <select class="form-select" id="warehouse_id" name="warehouse_id" required>
-                            <option value="">Select Warehouse</option>
-                            {% for warehouse in warehouses %}
-                            <option value="{{ warehouse.id }}" {% if purchase_order and purchase_order.warehouse_id == warehouse.id %}selected{% endif %}>
-                                {{ warehouse.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Right Column -->
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" id="order_date" name="order_date" 
-                               value="{{ purchase_order.order_date.strftime('%Y-%m-%d') if purchase_order and purchase_order.order_date else today }}" required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
-                        <input type="date" class="form-control" id="expected_delivery_date" name="expected_delivery_date"
-                               value="{{ purchase_order.expected_delivery_date.strftime('%Y-%m-%d') if purchase_order and purchase_order.expected_delivery_date else '' }}">
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mb-3">
-                <label for="notes" class="form-label">Notes</label>
-                <textarea class="form-control" id="notes" name="notes" rows="3">{{ purchase_order.notes if purchase_order else '' }}</textarea>
-            </div>
-            
-            <!-- Line Items Section -->
-            <h5 class="mb-3">Line Items</h5>
-            
-            <div class="table-responsive mb-3">
-                <table class="table table-bordered" id="lineItemsTable">
-                    <thead>
-                        <tr>
-                            <th style="width: 40%">Product</th>
-                            <th style="width: 15%">Quantity</th>
-                            <th style="width: 20%">Unit Price</th>
-                            <th style="width: 20%">Amount</th>
-                            <th style="width: 5%"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="lineItemsBody">
-                        {% if purchase_order and purchase_order.line_items %}
-                            {% for item in purchase_order.line_items %}
-                            <tr class="line-item-row">
-                                <td>
-                                    <select class="form-select product-select" name="product_id[]" required>
-                                        <option value="">Select Product</option>
-                                        {% for product in products %}
-                                        <option value="{{ product.id }}" data-cost="{{ product.cost_price }}" data-uom="{{ product.uom.abbreviation }}"
-                                                {% if item.product_id == product.id %}selected{% endif %}>
-                                            {{ product.name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control quantity-input" name="quantity[]" min="0.01" step="0.01" 
-                                               value="{{ item.quantity }}" required>
-                                        <span class="input-group-text uom-text">{{ item.product.uom.abbreviation }}</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control unit-price-input" name="unit_price[]" min="0.01" step="0.01" 
-                                               value="{{ item.unit_price }}" required>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="text" class="form-control line-amount" value="{{ '{:.2f}'.format(item.quantity * item.unit_price) }}" readonly>
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-danger btn-sm remove-line-btn">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr class="line-item-row">
-                                <td>
-                                    <select class="form-select product-select" name="product_id[]" required>
-                                        <option value="">Select Product</option>
-                                        {% for product in products %}
-                                        <option value="{{ product.id }}" data-cost="{{ product.cost_price }}" data-uom="{{ product.uom.abbreviation }}">
-                                            {{ product.name }}
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <input type="number" class="form-control quantity-input" name="quantity[]" min="0.01" step="0.01" value="1" required>
-                                        <span class="input-group-text uom-text">-</span>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="number" class="form-control unit-price-input" name="unit_price[]" min="0.01" step="0.01" value="0.00" required>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <span class="input-group-text">$</span>
-                                        <input type="text" class="form-control line-amount" value="0.00" readonly>
-                                    </div>
-                                </td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-danger btn-sm remove-line-btn">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div class="mb-4">
-                <button type="button" class="btn btn-outline-primary" id="addLineBtn">
-                    <i class="fas fa-plus me-1"></i> Add Line
-                </button>
-            </div>
-            
-            <!-- Summary -->
-            <div class="row justify-content-end mb-4">
-                <div class="col-md-4">
-                    <div class="bg-light p-3 rounded">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Subtotal:</span>
-                            <span id="subtotalAmount">$0.00</span>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <strong>Total:</strong>
-                            <strong id="totalAmount">$0.00</strong>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Button Group -->
-            <div class="d-flex justify-content-between">
-                <div>
-                    {% if purchase_order and purchase_order.status.name == 'Draft' %}
-                    <button type="submit" class="btn btn-danger" name="action" value="cancel" onclick="return confirm('Are you sure you want to cancel this purchase order?')">
-                        Cancel PO
-                    </button>
-                    {% endif %}
-                </div>
-                <div>
-                    <button type="submit" class="btn btn-secondary" name="action" value="save_draft">
-                        Save as Draft
-                    </button>
-                    <button type="submit" class="btn btn-primary ms-2" name="action" value="submit">
-                        Submit
-                    </button>
-                </div>
-            </div>
-        </form>
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Create Purchase Order</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('inventory.purchase_orders') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Purchase Orders
+        </a>
     </div>
 </div>
 {% endblock %}
 
+{% block content %}
+<form method="post" id="purchase-order-form">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- PO Details Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Purchase Order Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="vendor_id" class="form-label">Vendor <span class="text-danger">*</span></label>
+                            <select name="vendor_id" id="vendor_id" class="form-select" required>
+                                <option value="">Select Vendor</option>
+                                {% for vendor in vendors %}
+                                <option value="{{ vendor.id }}">{{ vendor.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="warehouse_id" class="form-label">Warehouse</label>
+                            <select name="warehouse_id" id="warehouse_id" class="form-select">
+                                <option value="">Select Warehouse</option>
+                                {% for warehouse in warehouses %}
+                                <option value="{{ warehouse.id }}">{{ warehouse.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="order_date" class="form-label">Order Date <span class="text-danger">*</span></label>
+                            <input type="date" name="order_date" id="order_date" class="form-control" value="{{ today }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="expected_delivery_date" class="form-label">Expected Delivery Date</label>
+                            <input type="date" name="expected_delivery_date" id="expected_delivery_date" class="form-control" min="{{ today }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="shipping_address" class="form-label">Shipping Address</label>
+                        <textarea name="shipping_address" id="shipping_address" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Line Items Card -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Line Items</h5>
+                    <button type="button" class="btn btn-sm btn-primary" id="add-item-btn">
+                        <i class="fas fa-plus me-1"></i> Add Item
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="line-items-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40%;">Product</th>
+                                    <th style="width: 15%;" class="text-end">Quantity</th>
+                                    <th style="width: 20%;" class="text-end">Unit Price</th>
+                                    <th style="width: 20%;" class="text-end">Total</th>
+                                    <th style="width: 5%;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="line-items-body">
+                                <tr class="line-item">
+                                    <td>
+                                        <select name="product_id[]" class="form-select product-select">
+                                            <option value="">Select Product</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-price="{{ product.cost_price }}">{{ product.name }} ({{ product.sku }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input type="number" name="quantity[]" class="form-control text-end quantity-input" min="0.01" step="0.01" value="1">
+                                    </td>
+                                    <td>
+                                        <input type="number" name="unit_price[]" class="form-control text-end price-input" min="0.01" step="0.01" value="0.00">
+                                    </td>
+                                    <td>
+                                        <div class="form-control-plaintext text-end line-total">$0.00</div>
+                                    </td>
+                                    <td class="text-center">
+                                        <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="3" class="text-end">Subtotal:</th>
+                                    <th class="text-end" id="subtotal">$0.00</th>
+                                    <th></th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">Tax:</th>
+                                    <th class="text-end" id="tax-total">$0.00</th>
+                                    <th></th>
+                                </tr>
+                                <tr>
+                                    <th colspan="3" class="text-end">Total:</th>
+                                    <th class="text-end" id="grand-total">$0.00</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <!-- Actions Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="submit" name="action" value="save_draft" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Save as Draft
+                        </button>
+                        <button type="submit" name="action" value="submit" class="btn btn-success">
+                            <i class="fas fa-paper-plane me-1"></i> Submit Purchase Order
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i> Reset Form
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selected Vendor Info -->
+            <div class="card d-none" id="vendor-info-card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Vendor Information</h5>
+                </div>
+                <div class="card-body">
+                    <div id="vendor-info">
+                        <!-- This will be populated by JavaScript when a vendor is selected -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
 {% block scripts %}
-{{ super() }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const lineItemsBody = document.getElementById('lineItemsBody');
-    const addLineBtn = document.getElementById('addLineBtn');
-    
-    // Add new line item
-    addLineBtn.addEventListener('click', function() {
-        addNewLineItem();
-    });
-    
-    // Remove line item
-    lineItemsBody.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-line-btn') || e.target.parentElement.classList.contains('remove-line-btn')) {
-            const row = e.target.closest('.line-item-row');
-            
-            // Don't remove if it's the only row
-            if (lineItemsBody.querySelectorAll('.line-item-row').length > 1) {
-                row.remove();
-                calculateTotals();
-            } else {
-                alert('At least one line item is required.');
-            }
-        }
-    });
-    
-    // Calculate line amount when quantity or unit price changes
-    lineItemsBody.addEventListener('input', function(e) {
-        if (e.target.classList.contains('quantity-input') || e.target.classList.contains('unit-price-input')) {
-            const row = e.target.closest('.line-item-row');
-            calculateLineAmount(row);
-            calculateTotals();
-        }
-    });
-    
-    // Update unit price and UOM when product is selected
-    lineItemsBody.addEventListener('change', function(e) {
-        if (e.target.classList.contains('product-select')) {
-            const row = e.target.closest('.line-item-row');
-            const selectedOption = e.target.options[e.target.selectedIndex];
-            
-            if (selectedOption.value) {
-                const costPrice = selectedOption.getAttribute('data-cost');
-                const uom = selectedOption.getAttribute('data-uom');
-                
-                row.querySelector('.unit-price-input').value = costPrice;
-                row.querySelector('.uom-text').textContent = uom;
-                
-                calculateLineAmount(row);
-                calculateTotals();
-            }
-        }
-    });
-    
-    // Initial calculations
-    calculateTotals();
-    
-    // Form validation
-    document.getElementById('poForm').addEventListener('submit', function(e) {
-        const lineItems = lineItemsBody.querySelectorAll('.line-item-row');
+    document.addEventListener('DOMContentLoaded', function() {
+        const lineItemsBody = document.getElementById('line-items-body');
+        const addItemBtn = document.getElementById('add-item-btn');
+        const subtotalEl = document.getElementById('subtotal');
+        const taxTotalEl = document.getElementById('tax-total');
+        const grandTotalEl = document.getElementById('grand-total');
         
-        // Check if at least one line item is added
-        if (lineItems.length === 0) {
-            e.preventDefault();
-            alert('At least one line item is required.');
-            return;
-        }
+        // Add line item
+        addItemBtn.addEventListener('click', function() {
+            const firstRow = document.querySelector('.line-item');
+            const newRow = firstRow.cloneNode(true);
+            
+            // Reset values
+            newRow.querySelector('.product-select').value = '';
+            newRow.querySelector('.quantity-input').value = '1';
+            newRow.querySelector('.price-input').value = '0.00';
+            newRow.querySelector('.line-total').textContent = '$0.00';
+            
+            // Add event listeners
+            addLineItemEventListeners(newRow);
+            
+            // Append to table
+            lineItemsBody.appendChild(newRow);
+            
+            // Update totals
+            updateTotals();
+        });
         
-        // Check if all products are selected
-        let hasEmptyProduct = false;
-        lineItems.forEach(row => {
+        // Add event listeners to first row
+        addLineItemEventListeners(document.querySelector('.line-item'));
+        
+        // Function to add event listeners to line item row
+        function addLineItemEventListeners(row) {
             const productSelect = row.querySelector('.product-select');
-            if (!productSelect.value) {
-                hasEmptyProduct = true;
+            const quantityInput = row.querySelector('.quantity-input');
+            const priceInput = row.querySelector('.price-input');
+            const removeBtn = row.querySelector('.remove-line-btn');
+            
+            // Product select change
+            productSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+                if (selectedOption.value) {
+                    priceInput.value = selectedOption.dataset.price || '0.00';
+                } else {
+                    priceInput.value = '0.00';
+                }
+                updateLineTotal(row);
+                updateTotals();
+            });
+            
+            // Quantity or price change
+            quantityInput.addEventListener('change', function() {
+                updateLineTotal(row);
+                updateTotals();
+            });
+            
+            priceInput.addEventListener('change', function() {
+                updateLineTotal(row);
+                updateTotals();
+            });
+            
+            // Remove line item
+            removeBtn.addEventListener('click', function() {
+                // Don't remove if it's the only row
+                if (document.querySelectorAll('.line-item').length > 1) {
+                    row.remove();
+                    updateTotals();
+                }
+            });
+        }
+        
+        // Update line total
+        function updateLineTotal(row) {
+            const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+            const price = parseFloat(row.querySelector('.price-input').value) || 0;
+            const total = quantity * price;
+            
+            row.querySelector('.line-total').textContent = '$' + total.toFixed(2);
+        }
+        
+        // Update all totals
+        function updateTotals() {
+            let subtotal = 0;
+            
+            // Calculate subtotal
+            document.querySelectorAll('.line-item').forEach(function(row) {
+                const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
+                const price = parseFloat(row.querySelector('.price-input').value) || 0;
+                subtotal += quantity * price;
+            });
+            
+            // For now, tax is 0
+            const tax = 0;
+            const grandTotal = subtotal + tax;
+            
+            // Update display
+            subtotalEl.textContent = '$' + subtotal.toFixed(2);
+            taxTotalEl.textContent = '$' + tax.toFixed(2);
+            grandTotalEl.textContent = '$' + grandTotal.toFixed(2);
+        }
+        
+        // Vendor selection to show info
+        const vendorSelect = document.getElementById('vendor_id');
+        const vendorInfoCard = document.getElementById('vendor-info-card');
+        const vendorInfo = document.getElementById('vendor-info');
+        
+        vendorSelect.addEventListener('change', function() {
+            if (this.value) {
+                const selectedVendor = this.options[this.selectedIndex].text;
+                vendorInfo.innerHTML = `<h6>${selectedVendor}</h6>`;
+                vendorInfoCard.classList.remove('d-none');
+            } else {
+                vendorInfoCard.classList.add('d-none');
             }
         });
         
-        if (hasEmptyProduct) {
-            e.preventDefault();
-            alert('Please select a product for all line items.');
-            return;
-        }
-    });
-    
-    // Helper function: Calculate line amount
-    function calculateLineAmount(row) {
-        const quantity = parseFloat(row.querySelector('.quantity-input').value) || 0;
-        const unitPrice = parseFloat(row.querySelector('.unit-price-input').value) || 0;
-        const lineAmount = quantity * unitPrice;
-        
-        row.querySelector('.line-amount').value = lineAmount.toFixed(2);
-    }
-    
-    // Helper function: Calculate totals
-    function calculateTotals() {
-        let subtotal = 0;
-        
-        document.querySelectorAll('.line-amount').forEach(element => {
-            subtotal += parseFloat(element.value) || 0;
+        // Form validation
+        document.getElementById('purchase-order-form').addEventListener('submit', function(e) {
+            let isValid = true;
+            
+            // Check if at least one item is added
+            const productSelects = document.querySelectorAll('.product-select');
+            let hasProduct = false;
+            
+            productSelects.forEach(function(select) {
+                if (select.value) {
+                    hasProduct = true;
+                }
+            });
+            
+            if (!hasProduct) {
+                alert('Please add at least one product to the purchase order.');
+                e.preventDefault();
+                isValid = false;
+            }
+            
+            // Add additional validation as needed
+            
+            return isValid;
         });
-        
-        // Update totals
-        document.getElementById('subtotalAmount').textContent = '$' + subtotal.toFixed(2);
-        document.getElementById('totalAmount').textContent = '$' + subtotal.toFixed(2);
-    }
-    
-    // Helper function: Add new line item
-    function addNewLineItem() {
-        const template = document.querySelector('.line-item-row').cloneNode(true);
-        
-        // Reset form values
-        template.querySelector('.product-select').value = '';
-        template.querySelector('.quantity-input').value = '1';
-        template.querySelector('.unit-price-input').value = '0.00';
-        template.querySelector('.line-amount').value = '0.00';
-        template.querySelector('.uom-text').textContent = '-';
-        
-        lineItemsBody.appendChild(template);
-    }
-});
+    });
 </script>
 {% endblock %}

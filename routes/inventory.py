@@ -861,118 +861,42 @@ def stock_valuation_report():
     search = request.args.get('search')
     sort = request.args.get('sort', 'name')
     
-    # Get inventory transactions for current stock
-    # This is a simplified approach; in a real system, you would use a more optimized method
-    query = db.session.query(
-        Product.id.label('product_id'),
-        Product.name.label('product_name'),
-        Product.sku.label('product_sku'),
-        Product.cost_price.label('cost_price'),
-        func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ).label('current_stock')
-    ).join(
-        InventoryTransaction, Product.id == InventoryTransaction.product_id
-    ).group_by(
-        Product.id
-    ).having(
-        func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ) > 0  # Only products with stock
-    )
+    # Create a simple version that doesn't rely on complex SQLAlchemy case statements
+    # Get all products
+    products = Product.query.filter_by(is_active=True).all()
     
-    # Apply filters
-    if warehouse_id:
-        # In a real system, you would filter by warehouse
-        pass
-        
-    if category_id:
-        query = query.filter(Product.category_id == category_id)
-        
-    if search:
-        query = query.filter(
-            Product.name.ilike(f'%{search}%') | 
-            Product.sku.ilike(f'%{search}%')
-        )
-    
-    # Apply sorting
-    if sort == 'name':
-        query = query.order_by(Product.name)
-    elif sort == 'value_high':
-        query = query.order_by((func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ) * Product.cost_price).desc())
-    elif sort == 'value_low':
-        query = query.order_by((func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ) * Product.cost_price))
-    elif sort == 'quantity_high':
-        query = query.order_by(func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ).desc())
-    elif sort == 'quantity_low':
-        query = query.order_by(func.sum(
-            db.case(
-                [(InventoryTransaction.transaction_type == 'IN', InventoryTransaction.quantity)],
-                else_=0
-            ) - 
-            db.case(
-                [(InventoryTransaction.transaction_type == 'OUT', InventoryTransaction.quantity)],
-                else_=0
-            )
-        ))
-    
-    # Execute query
-    stock_items_data = query.all()
-    
-    # Get full product objects and create stock items
-    stock_items = []
+    # Calculate current stock and values manually
+    stock_items_data = []
     total_value = 0
     category_totals = {}
     warehouse_totals = {}
     
-    for item_data in stock_items_data:
-        product = Product.query.get(item_data.product_id)
-        if not product:
+    for product in products:
+        # Get current stock for product
+        current_stock = 0
+        transactions = InventoryTransaction.query.filter_by(product_id=product.id).all()
+        
+        for tx in transactions:
+            if tx.transaction_type == 'IN':
+                current_stock += tx.quantity
+            elif tx.transaction_type == 'OUT':
+                current_stock -= tx.quantity
+        
+        # Skip if no stock
+        if current_stock <= 0:
             continue
             
-        item_value = item_data.current_stock * item_data.cost_price
+        # Calculate value
+        item_value = current_stock * product.cost_price
         total_value += item_value
+        
+        # Add to stock items
+        stock_items_data.append({
+            'product': product,
+            'quantity': current_stock,
+            'value': item_value,
+            'warehouse': {'name': 'Main Warehouse'}  # Default warehouse
+        })
         
         # Calculate category totals
         category_name = product.category.name if product.category else 'Uncategorized'
@@ -980,18 +904,40 @@ def stock_valuation_report():
             category_totals[category_name] = 0
         category_totals[category_name] += item_value
         
-        # In a real system, you would track stock by warehouse
-        warehouse_name = "Main Warehouse"  # Placeholder
+        # Calculate warehouse totals
+        warehouse_name = 'Main Warehouse'  # Default for now
         if warehouse_name not in warehouse_totals:
             warehouse_totals[warehouse_name] = 0
         warehouse_totals[warehouse_name] += item_value
-        
-        stock_items.append({
-            'product': product,
-            'quantity': item_data.current_stock,
-            'value': item_value,
-            'warehouse': {'name': warehouse_name}
-        })
+    
+    # Apply filters for our simplified version
+    filtered_stock_items = []
+    
+    for item in stock_items_data:
+        # Apply category filter
+        if category_id and item['product'].category_id != int(category_id):
+            continue
+            
+        # Apply search filter
+        if search and search.lower() not in item['product'].name.lower() and search.lower() not in item['product'].sku.lower():
+            continue
+            
+        filtered_stock_items.append(item)
+    
+    # Apply sorting
+    if sort == 'name':
+        filtered_stock_items.sort(key=lambda x: x['product'].name)
+    elif sort == 'value_high':
+        filtered_stock_items.sort(key=lambda x: x['value'], reverse=True)
+    elif sort == 'value_low':
+        filtered_stock_items.sort(key=lambda x: x['value'])
+    elif sort == 'quantity_high':
+        filtered_stock_items.sort(key=lambda x: x['quantity'], reverse=True)
+    elif sort == 'quantity_low':
+        filtered_stock_items.sort(key=lambda x: x['quantity'])
+    
+    # Our simplified version already built all the data we need
+    stock_items = filtered_stock_items
     
     # Get categories and warehouses for filter dropdowns
     categories = ProductCategory.query.order_by(ProductCategory.name).all()
@@ -1246,6 +1192,14 @@ def create_purchase_order():
     
     # Get products
     products = Product.query.filter_by(is_active=True).order_by(Product.name).all()
+    
+    return render_template(
+        'inventory/purchase_order_form.html',
+        vendors=vendors,
+        warehouses=warehouses,
+        products=products,
+        today=datetime.now().strftime('%Y-%m-%d')
+    )
 
 @inventory_bp.route('/purchase-orders/<int:po_id>')
 @login_required
