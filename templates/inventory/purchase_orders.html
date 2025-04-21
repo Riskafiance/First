@@ -108,13 +108,13 @@
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 {% if po.status.name in ['Draft', 'Submitted'] %}
-                                <a href="{{ url_for('inventory.edit_purchase_order', po_id=po.id) }}" class="btn btn-outline-primary" title="Edit">
+                                <a href="{{ url_for('inventory.view_purchase_order', po_id=po.id) }}" class="btn btn-outline-primary" title="View/Edit">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 {% endif %}
                                 
                                 {% if po.status.name in ['Approved', 'Partially Received'] %}
-                                <a href="{{ url_for('inventory.receive_inventory', po_id=po.id) }}" class="btn btn-outline-success" title="Receive Items">
+                                <a href="{{ url_for('inventory.view_purchase_order', po_id=po.id) }}" class="btn btn-outline-success" title="View Details">
                                     <i class="fas fa-truck-loading"></i>
                                 </a>
                                 {% endif %}
