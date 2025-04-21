@@ -102,11 +102,15 @@
         
         .page-header {
             margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
+            padding: 1.5rem 0;
             border-bottom: 1px solid var(--bs-gray-800);
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        
+        .page-actions {
+            margin-top: 0.5rem;
         }
         
         .main-content {
@@ -447,9 +451,11 @@
     <!-- Main Content -->
     <div id="content" class="main-content">
         <div class="page-header">
-            <h1 class="h3">{% block page_title %}Dashboard{% endblock %}</h1>
-            <div class="page-actions">
-                {% block page_actions %}{% endblock %}
+            <div>
+                <h1 class="h3">{% block page_title %}Dashboard{% endblock %}</h1>
+                <div class="page-actions mt-3">
+                    {% block page_actions %}{% endblock %}
+                </div>
             </div>
         </div>
         
