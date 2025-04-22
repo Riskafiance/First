@@ -247,7 +247,7 @@
                 </li>
                 
                 <!-- Bank Reconciliation -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#bankReconciliationMenu">
                         <i class="fas fa-university"></i> Bank Reconciliation
@@ -269,7 +269,7 @@
                 {% endif %}
                 
                 <!-- Sales & Customers -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#salesMenu">
                         <i class="fas fa-shopping-cart"></i> Sales
@@ -291,7 +291,7 @@
                 {% endif %}
                 
                 <!-- Purchases & Vendors -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#purchasesMenu">
                         <i class="fas fa-shopping-bag"></i> Purchases
@@ -313,7 +313,7 @@
                 {% endif %}
                 
                 <!-- Inventory Management -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#inventoryMenu">
                         <i class="fas fa-boxes"></i> Inventory
@@ -340,7 +340,7 @@
                 {% endif %}
                 
                 <!-- Fixed Assets -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#assetsMenu">
                         <i class="fas fa-building"></i> Fixed Assets
@@ -362,7 +362,7 @@
                 {% endif %}
                 
                 <!-- Budgeting -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#budgetMenu">
                         <i class="fas fa-coins"></i> Budgeting
@@ -389,7 +389,7 @@
                 {% endif %}
                 
                 <!-- Reports -->
-                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                {% if current_user.is_authenticated and current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#reportsMenu">
                         <i class="fas fa-chart-bar"></i> Reports
