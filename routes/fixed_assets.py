@@ -838,6 +838,8 @@ def dispose_asset(asset_id):
             
             # Calculate gain/loss
             disposal_amount = Decimal(disposal_amount)
+            # Ensure book_value is also a Decimal for calculation
+            book_value = Decimal(str(book_value))
             gain_loss = disposal_amount - book_value
             
             # Create the disposal record
@@ -889,7 +891,9 @@ def dispose_asset(asset_id):
                 db.session.flush()  # Get the journal_entry.id
                 
                 # Calculate the accumulated depreciation
-                accumulated_depreciation = asset.purchase_cost - book_value
+                # Ensure purchase_cost is a Decimal for the calculation
+                purchase_cost = Decimal(str(asset.purchase_cost))
+                accumulated_depreciation = purchase_cost - book_value
                 
                 # Add journal items based on disposal type
                 if disposal_type.lower() == 'sold':
@@ -925,7 +929,7 @@ def dispose_asset(asset_id):
                         account_id=category.asset_account_id,
                         description=f"Remove asset from books: {asset.name}",
                         debit_amount=0,
-                        credit_amount=asset.purchase_cost
+                        credit_amount=purchase_cost  # Use the Decimal converted purchase_cost
                     )
                     db.session.add(asset_credit)
                     
@@ -985,7 +989,7 @@ def dispose_asset(asset_id):
                         account_id=category.asset_account_id,
                         description=f"Remove asset from books: {asset.name}",
                         debit_amount=0,
-                        credit_amount=asset.purchase_cost
+                        credit_amount=purchase_cost  # Use the Decimal converted purchase_cost
                     )
                     db.session.add(asset_credit)
                     
@@ -1001,7 +1005,7 @@ def dispose_asset(asset_id):
                                 journal_entry_id=journal_entry.id,
                                 account_id=loss_account.id,
                                 description=f"Loss on disposal of asset: {asset.name}",
-                                debit_amount=book_value,
+                                debit_amount=book_value,  # Already a Decimal from earlier conversion
                                 credit_amount=0
                             )
                             db.session.add(loss_debit)
