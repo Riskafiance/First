@@ -818,11 +818,11 @@ def dispose_asset(asset_id):
     if request.method == 'POST':
         # Get form data
         disposal_date = request.form.get('disposal_date')
-        disposal_type = request.form.get('disposal_type')
-        disposal_amount = request.form.get('sale_amount') or 0
+        disposal_type = request.form.get('disposal_type')  # This will be lowercase in the form
+        sale_amount = request.form.get('sale_amount') or 0
         buyer_name = request.form.get('buyer_name')
         reason = request.form.get('reason')
-        notes = request.form.get('disposal_notes')
+        disposal_notes = request.form.get('disposal_notes')
         
         # Validate required fields
         if not all([disposal_date, disposal_type]):
@@ -836,11 +836,11 @@ def dispose_asset(asset_id):
             # Calculate current book value
             book_value = asset.get_current_book_value()
             
-            # Calculate gain/loss
-            disposal_amount = Decimal(disposal_amount)
+            # Convert sale_amount to Decimal
+            sale_amount_decimal = Decimal(str(sale_amount))
             # Ensure book_value is also a Decimal for calculation
             book_value = Decimal(str(book_value))
-            gain_loss = disposal_amount - book_value
+            gain_loss = sale_amount_decimal - book_value
             
             # Create the disposal record
             # Handle buyer information from form
@@ -856,12 +856,12 @@ def dispose_asset(asset_id):
                 asset_id=asset_id,
                 disposal_date=disposal_date,
                 disposal_type=disposal_type,
-                disposal_amount=disposal_amount,
+                disposal_amount=sale_amount_decimal,
                 buyer_id=buyer_id,
                 book_value_at_disposal=book_value,
                 gain_loss_amount=gain_loss,
                 reason=reason,
-                notes=notes,
+                notes=disposal_notes,
                 created_by_id=current_user.id
             )
             
@@ -904,11 +904,12 @@ def dispose_asset(asset_id):
                     ).first()
                     
                     if cash_account:
+                        # Use the previously defined sale_amount_decimal for the debit amount
                         cash_debit = JournalItem(
                             journal_entry_id=journal_entry.id,
                             account_id=cash_account.id,
                             description=f"Cash received for sale of asset: {asset.name}",
-                            debit_amount=disposal_amount,
+                            debit_amount=sale_amount_decimal,
                             credit_amount=0
                         )
                         db.session.add(cash_debit)
