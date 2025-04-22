@@ -819,10 +819,10 @@ def dispose_asset(asset_id):
         # Get form data
         disposal_date = request.form.get('disposal_date')
         disposal_type = request.form.get('disposal_type')
-        disposal_amount = request.form.get('disposal_amount') or 0
-        buyer_id = request.form.get('buyer_id')
+        disposal_amount = request.form.get('sale_amount') or 0
+        buyer_name = request.form.get('buyer_name')
         reason = request.form.get('reason')
-        notes = request.form.get('notes')
+        notes = request.form.get('disposal_notes')
         
         # Validate required fields
         if not all([disposal_date, disposal_type]):
@@ -841,12 +841,21 @@ def dispose_asset(asset_id):
             gain_loss = disposal_amount - book_value
             
             # Create the disposal record
+            # Handle buyer information from form
+            buyer_id = None
+            # Check disposal type case-insensitively
+            if buyer_name and disposal_type.lower() == 'sold':
+                # Find or create a buyer entity based on the name
+                buyer_entity = Entity.query.filter_by(name=buyer_name).first()
+                if buyer_entity:
+                    buyer_id = buyer_entity.id
+            
             disposal = AssetDisposal(
                 asset_id=asset_id,
                 disposal_date=disposal_date,
                 disposal_type=disposal_type,
                 disposal_amount=disposal_amount,
-                buyer_id=buyer_id if buyer_id else None,
+                buyer_id=buyer_id,
                 book_value_at_disposal=book_value,
                 gain_loss_amount=gain_loss,
                 reason=reason,
@@ -856,8 +865,8 @@ def dispose_asset(asset_id):
             
             db.session.add(disposal)
             
-            # Update asset status
-            if disposal_type == 'Sold':
+            # Update asset status - using case-insensitive check
+            if disposal_type.lower() == 'sold':
                 sold_status = AssetStatus.query.filter_by(name=AssetStatus.SOLD).first()
                 if sold_status:
                     asset.status_id = sold_status.id
@@ -883,7 +892,7 @@ def dispose_asset(asset_id):
                 accumulated_depreciation = asset.purchase_cost - book_value
                 
                 # Add journal items based on disposal type
-                if disposal_type == 'Sold':
+                if disposal_type.lower() == 'sold':
                     # Debit Cash or Accounts Receivable for the sale amount
                     cash_account = Account.query.join(AccountType).filter(
                         AccountType.name == AccountType.ASSET,
