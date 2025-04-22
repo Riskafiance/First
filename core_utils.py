@@ -192,20 +192,17 @@ def generate_pl_report(start_date=None, end_date=None):
             ).scalar() or 0
             
             if balance != 0:
-                # Negate the balance to show expenses as negative values
-                negative_balance = float(balance) * -1
                 report_data['expenses'].append({
                     'account_code': account.code,
                     'account_name': account.name,
-                    'balance': negative_balance
+                    'balance': float(balance)
                 })
-                total_expenses += negative_balance
+                total_expenses += float(balance)
         
         report_data['totals']['expenses'] = total_expenses
     
     # Calculate net income
-    # Since expenses are now negative, we add them to revenue instead of subtracting
-    report_data['totals']['net_income'] = report_data['totals']['revenue'] + report_data['totals']['expenses']
+    report_data['totals']['net_income'] = report_data['totals']['revenue'] - report_data['totals']['expenses']
     
     return report_data
 
