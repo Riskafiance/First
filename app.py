@@ -4,7 +4,7 @@ import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from flask_login import LoginManager, AnonymousUserMixin
+from flask_login import LoginManager
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
@@ -16,11 +16,6 @@ class Base(DeclarativeBase):
 
 # Initialize database
 db = SQLAlchemy(model_class=Base)
-
-# Create a custom AnonymousUser class that implements has_permission
-class AnonymousUser(AnonymousUserMixin):
-    def has_permission(self, permission):
-        return False
 
 # Create the Flask app
 app = Flask(__name__)
@@ -50,7 +45,6 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
 login_manager.login_message_category = 'info'
-login_manager.anonymous_user = AnonymousUser  # Use our custom AnonymousUser class
 
 # Create database tables
 with app.app_context():
