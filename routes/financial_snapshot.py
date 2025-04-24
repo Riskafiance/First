@@ -35,14 +35,22 @@ def financial_snapshot():
         # Get trends for last 6 months
         trends = get_monthly_trends(months=6)
         
-        # Calculate key financial ratios
-        total_assets = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
-            AccountType.classification == 'Asset'
-        ).scalar() or 0
+        # Calculate key financial ratios by summing all account balances
+        # Get all asset accounts
+        asset_accounts = db.session.query(Account).join(AccountType).filter(
+            AccountType.name == AccountType.ASSET
+        ).all()
         
-        total_liabilities = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
-            AccountType.classification == 'Liability'
-        ).scalar() or 0
+        # Get all liability accounts
+        liability_accounts = db.session.query(Account).join(AccountType).filter(
+            AccountType.name == AccountType.LIABILITY
+        ).all()
+        
+        # Calculate total assets by summing up all asset account balances
+        total_assets = sum(get_account_balance(account.id) for account in asset_accounts)
+        
+        # Calculate total liabilities by summing up all liability account balances
+        total_liabilities = sum(get_account_balance(account.id) for account in liability_accounts)
         
         # Get total accounts receivable
         accounts_receivable = db.session.query(func.sum(Invoice.total_amount - Invoice.paid_amount)).filter(
@@ -100,19 +108,29 @@ def financial_snapshot():
         fixed_assets_value = db.session.query(func.sum(FixedAsset.current_value)).scalar() or 0
         
         # Calculate liquidity ratios
-        cash = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+        # Get cash accounts
+        cash_accounts = db.session.query(Account).join(AccountType).filter(
             AccountType.name == 'Cash'
-        ).scalar() or 0
+        ).all()
         
-        current_assets = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
-            AccountType.classification == 'Asset',
+        # Get current asset accounts
+        current_asset_accounts = db.session.query(Account).join(AccountType).filter(
+            AccountType.name == AccountType.ASSET,
             AccountType.is_current == True
-        ).scalar() or 0
+        ).all()
         
-        current_liabilities = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
-            AccountType.classification == 'Liability',
+        # Get current liability accounts
+        current_liability_accounts = db.session.query(Account).join(AccountType).filter(
+            AccountType.name == AccountType.LIABILITY,
             AccountType.is_current == True
-        ).scalar() or 0
+        ).all()
+        
+        # Calculate totals using get_account_balance function
+        cash = sum(get_account_balance(account.id) for account in cash_accounts)
+        
+        current_assets = sum(get_account_balance(account.id) for account in current_asset_accounts)
+        
+        current_liabilities = sum(get_account_balance(account.id) for account in current_liability_accounts)
         
         # Calculate ratios
         if current_liabilities > 0:
@@ -209,29 +227,49 @@ def get_financial_data():
             return jsonify({'data': chart_data})
         
         elif chart_type == 'assets':
-            # Get asset types distribution
-            asset_types = db.session.query(
-                AccountType.name,
-                func.sum(Account.balance).label('total')
-            ).join(Account).filter(
-                AccountType.classification == 'Asset',
-                Account.balance > 0
-            ).group_by(AccountType.name).all()
+            # Get asset types and accounts
+            asset_types_data = {}
+            asset_accounts = db.session.query(
+                Account.id,
+                Account.name,
+                AccountType.name.label('type_name')
+            ).join(AccountType).filter(
+                AccountType.name == AccountType.ASSET
+            ).all()
             
-            chart_data = [{'name': t.name, 'value': float(t.total)} for t in asset_types]
+            # Calculate balances and group by account type
+            for account in asset_accounts:
+                balance = get_account_balance(account.id)
+                if balance > 0:  # Only include accounts with positive balances
+                    if account.type_name not in asset_types_data:
+                        asset_types_data[account.type_name] = 0
+                    asset_types_data[account.type_name] += float(balance)
+            
+            # Format for chart
+            chart_data = [{'name': name, 'value': value} for name, value in asset_types_data.items()]
             return jsonify({'data': chart_data})
         
         elif chart_type == 'liabilities':
-            # Get liability types distribution
-            liability_types = db.session.query(
-                AccountType.name,
-                func.sum(Account.balance).label('total')
-            ).join(Account).filter(
-                AccountType.classification == 'Liability',
-                Account.balance > 0
-            ).group_by(AccountType.name).all()
+            # Get liability types and accounts
+            liability_types_data = {}
+            liability_accounts = db.session.query(
+                Account.id,
+                Account.name,
+                AccountType.name.label('type_name')
+            ).join(AccountType).filter(
+                AccountType.name == AccountType.LIABILITY
+            ).all()
             
-            chart_data = [{'name': t.name, 'value': float(t.total)} for t in liability_types]
+            # Calculate balances and group by account type
+            for account in liability_accounts:
+                balance = get_account_balance(account.id)
+                if balance > 0:  # Only include accounts with positive balances
+                    if account.type_name not in liability_types_data:
+                        liability_types_data[account.type_name] = 0
+                    liability_types_data[account.type_name] += float(balance)
+            
+            # Format for chart
+            chart_data = [{'name': name, 'value': value} for name, value in liability_types_data.items()]
             return jsonify({'data': chart_data})
         
         return jsonify({'error': 'Invalid chart type'})
