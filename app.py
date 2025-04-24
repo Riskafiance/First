@@ -101,6 +101,7 @@ from routes.fixed_assets import setup_assets_blueprint
 from routes.budgeting import budgeting_bp
 from routes.bank_reconciliation import bank_reconciliation_bp
 from routes.projects import projects_bp
+from routes.financial_snapshot import snapshot
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(profile_bp)
@@ -115,6 +116,7 @@ app.register_blueprint(reports_bp)
 app.register_blueprint(budgeting_bp, url_prefix='/budgeting')
 app.register_blueprint(bank_reconciliation_bp, url_prefix='/banking')
 app.register_blueprint(projects_bp, url_prefix='/projects')
+app.register_blueprint(snapshot, url_prefix='/snapshots')
 
 # Setup fixed assets blueprint
 setup_assets_blueprint(app)
@@ -139,9 +141,29 @@ def nl2br_filter(s):
         return ""
     return Markup(s.replace('\n', '<br>'))
 
+@app.template_filter('format_currency')
+def format_currency_filter(value, symbol='$', decimal_places=2):
+    """Format a number as currency"""
+    if value is None:
+        return ""
+    try:
+        value = float(value)
+        formatted = f"{symbol}{value:,.{decimal_places}f}"
+        return formatted
+    except (ValueError, TypeError):
+        return f"{symbol}0.00"
+
 # Add context processors
 @app.context_processor
 def inject_role():
-    """Make Role model available in all templates"""
+    """Make Role model and enumeration classes available in all templates"""
     from models import Role, ProjectStatus
-    return {'Role': Role, 'statuses': ProjectStatus}
+    # Convert ProjectStatus to a dictionary for iteration in templates
+    status_dict = {
+        'PLANNED': 1,
+        'IN_PROGRESS': 2, 
+        'ON_HOLD': 3,
+        'COMPLETED': 4,
+        'CANCELLED': 5
+    }
+    return {'Role': Role, 'statuses': ProjectStatus, 'status_list': status_dict}
