@@ -143,5 +143,5 @@ def nl2br_filter(s):
 @app.context_processor
 def inject_role():
     """Make Role model available in all templates"""
-    from models import Role
-    return {'Role': Role}
+    from models import Role, ProjectStatus
+    return {'Role': Role, 'statuses': ProjectStatus}

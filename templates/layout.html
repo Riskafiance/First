@@ -361,6 +361,35 @@
                 </li>
                 {% endif %}
                 
+                <!-- Project Management -->
+                {% if current_user.has_permission(Role.CAN_VIEW) %}
+                <li class="nav-item">
+                    <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#projectsMenu">
+                        <i class="fas fa-project-diagram"></i> Projects
+                        <i class="fas fa-angle-down ms-auto"></i>
+                    </a>
+                    <ul class="nav flex-column collapse nav-treeview" id="projectsMenu">
+                        <li class="nav-item">
+                            <a href="{{ url_for('projects.projects_list') }}" class="nav-link {{ 'active' if request.endpoint == 'projects.projects_list' }}">
+                                <i class="fas fa-list"></i> All Projects
+                            </a>
+                        </li>
+                        {% if current_user.has_permission(Role.CAN_CREATE) %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('projects.create_project') }}" class="nav-link {{ 'active' if request.endpoint == 'projects.create_project' }}">
+                                <i class="fas fa-plus-circle"></i> New Project
+                            </a>
+                        </li>
+                        {% endif %}
+                        <li class="nav-item">
+                            <a href="{{ url_for('projects.projects_list') }}?status=2" class="nav-link">
+                                <i class="fas fa-tasks"></i> Active Projects
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+                
                 <!-- Budgeting -->
                 {% if current_user.has_permission(Role.CAN_VIEW) %}
                 <li class="nav-item">

@@ -1,0 +1,311 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ project.name }} | Tasks{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{{ project.name }}</h1>
+        <p class="text-muted mb-0">Task Management</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Project
+        </a>
+        
+        {% if current_user.has_permission(Role.CAN_CREATE) %}
+        <a href="{{ url_for('projects.create_task', project_id=project.id) }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Task
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Project Tasks</h5>
+    </div>
+    <div class="card-body">
+        {% if all_tasks %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th style="width: 30%">Task</th>
+                        <th>Assigned To</th>
+                        <th>Status</th>
+                        <th>Start Date</th>
+                        <th>Deadline</th>
+                        <th>Hours</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in root_tasks %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-circle me-2 {% if task.is_completed %}text-success{% else %}text-primary{% endif %}" style="font-size: 0.5rem;"></i>
+                                <div>
+                                    <strong>{{ task.name }}</strong>
+                                    {% if task.description %}
+                                    <div class="small text-muted">{{ task.description|truncate(50) }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if task.assignee %}
+                            {{ task.assignee.username }}
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill 
+                                {% if task.is_completed %}bg-success{% else %}bg-primary{% endif %}">
+                                {{ 'Completed' if task.is_completed else 'In Progress' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if task.start_date %}
+                            {{ task.start_date.strftime('%b %d, %Y') }}
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if task.end_date %}
+                            {% if not task.is_completed and task.end_date < today %}
+                            <span class="text-danger">{{ task.end_date.strftime('%b %d, %Y') }}</span>
+                            {% else %}
+                            {{ task.end_date.strftime('%b %d, %Y') }}
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ task.actual_hours|default(0) }}
+                            {% if task.estimated_hours %}
+                            <span class="text-muted small">/ {{ task.estimated_hours }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                {% if current_user.has_permission(Role.CAN_EDIT) %}
+                                <a href="{{ url_for('projects.edit_task', project_id=project.id, task_id=task.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}?task_id={{ task.id }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-clock"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Subtasks -->
+                    {% for subtask in task.subtasks %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center" style="margin-left: 20px;">
+                                <i class="fas fa-circle me-2 {% if subtask.is_completed %}text-success{% else %}text-secondary{% endif %}" style="font-size: 0.5rem;"></i>
+                                <div>
+                                    <span>{{ subtask.name }}</span>
+                                    {% if subtask.description %}
+                                    <div class="small text-muted">{{ subtask.description|truncate(50) }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if subtask.assignee %}
+                            {{ subtask.assignee.username }}
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill 
+                                {% if subtask.is_completed %}bg-success{% else %}bg-primary{% endif %}">
+                                {{ 'Completed' if subtask.is_completed else 'In Progress' }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if subtask.start_date %}
+                            {{ subtask.start_date.strftime('%b %d, %Y') }}
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if subtask.end_date %}
+                            {% if not subtask.is_completed and subtask.end_date < today %}
+                            <span class="text-danger">{{ subtask.end_date.strftime('%b %d, %Y') }}</span>
+                            {% else %}
+                            {{ subtask.end_date.strftime('%b %d, %Y') }}
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">Not set</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ subtask.actual_hours|default(0) }}
+                            {% if subtask.estimated_hours %}
+                            <span class="text-muted small">/ {{ subtask.estimated_hours }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group">
+                                {% if current_user.has_permission(Role.CAN_EDIT) %}
+                                <a href="{{ url_for('projects.edit_task', project_id=project.id, task_id=subtask.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}?task_id={{ subtask.id }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-clock"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No tasks have been created for this project.
+            {% if current_user.has_permission(Role.CAN_CREATE) %}
+            Use the "New Task" button to create your first task.
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Project Summary Card -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Status</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="badge rounded-pill 
+                        {% if project.status.name == 'In Progress' %}bg-success{% endif %}
+                        {% if project.status.name == 'Planned' %}bg-info{% endif %}
+                        {% if project.status.name == 'On Hold' %}bg-warning{% endif %}
+                        {% if project.status.name == 'Completed' %}bg-secondary{% endif %}
+                        {% if project.status.name == 'Cancelled' %}bg-danger{% endif %}
+                        me-2">
+                        {{ project.status.name }}
+                    </span>
+                    <span>{{ project.completion_percentage|default(0)|round|int }}% Complete</span>
+                </div>
+                
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar 
+                        {% if project.status.name == 'On Hold' %}bg-warning{% endif %}
+                        {% if project.status.name == 'Completed' %}bg-success{% endif %}"
+                        role="progressbar" 
+                        style="width: {{ project.completion_percentage|default(0)|round|int }}%;" 
+                        aria-valuenow="{{ project.completion_percentage|default(0)|round|int }}" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Start Date:</span>
+                        <span>{{ project.start_date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>End Date:</span>
+                        <span>{{ project.end_date.strftime('%b %d, %Y') if project.end_date else 'Not set' }}</span>
+                    </div>
+                </div>
+                
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span>Tasks:</span>
+                        <span>{{ all_tasks|length }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Completed:</span>
+                        <span>{{ all_tasks|selectattr('is_completed', 'eq', true)|list|length }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Time Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Estimated Hours:</span>
+                    <span>{{ project.estimated_hours|default(0) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Actual Hours:</span>
+                    <span>{{ project.actual_hours|default(0) }}</span>
+                </div>
+                
+                {% if project.estimated_hours %}
+                <div class="progress mb-3" style="height: 8px;">
+                    <div class="progress-bar 
+                        {% if project.actual_hours > project.estimated_hours %}bg-danger{% else %}bg-primary{% endif %}"
+                        role="progressbar" 
+                        style="width: {{ (project.actual_hours / project.estimated_hours * 100)|default(0)|round|int if project.estimated_hours else 0 }}%;" 
+                        aria-valuenow="{{ (project.actual_hours / project.estimated_hours * 100)|default(0)|round|int if project.estimated_hours else 0 }}" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> Log Time
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('projects.project_time', project_id=project.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-clock me-1"></i> Time Entries
+                    </a>
+                    
+                    <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-edit me-1"></i> Edit Project
+                    </a>
+                    
+                    <a href="{{ url_for('projects.project_reports', project_id=project.id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar me-1"></i> Project Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

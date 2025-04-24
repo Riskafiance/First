@@ -1,0 +1,181 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+{% if edit_mode %}Edit Task - {{ task.name }}{% else %}Create New Task{% endif %}
+{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        {% if edit_mode %}Edit Task{% else %}Create New Task{% endif %}
+    </h1>
+    
+    <div class="btn-group" role="group">
+        {% if edit_mode %}
+        <a href="{{ url_for('projects.project_tasks', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i> Cancel
+        </a>
+        {% else %}
+        <a href="{{ url_for('projects.project_tasks', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Tasks
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{% if edit_mode %}Edit Task{% else %}Task Details{% endif %}</h5>
+                    <span class="badge bg-primary">{{ project.name }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post" action="
+                    {% if edit_mode %}{{ url_for('projects.edit_task', project_id=project.id, task_id=task.id) }}
+                    {% else %}{{ url_for('projects.create_task', project_id=project.id) }}{% endif %}">
+                    
+                    <!-- Basic Information -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Basic Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="name" class="form-label">Task Name <span class="text-danger">*</span></label>
+                                <input type="text" id="name" name="name" class="form-control" required 
+                                    value="{% if edit_mode %}{{ task.name }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea id="description" name="description" class="form-control" rows="3">{% if edit_mode %}{{ task.description }}{% endif %}</textarea>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label for="parent_task_id" class="form-label">Parent Task</label>
+                                <select id="parent_task_id" name="parent_task_id" class="form-select">
+                                    <option value="">-- No Parent Task (Root Level) --</option>
+                                    {% for t in tasks %}
+                                    <option value="{{ t.id }}" 
+                                        {% if edit_mode and task.parent_task_id == t.id %}selected{% endif %}>
+                                        {{ t.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Optional - create a hierarchy of tasks</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schedule -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Schedule</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" id="start_date" name="start_date" class="form-control"
+                                    value="{% if edit_mode and task.start_date %}{{ task.start_date.strftime('%Y-%m-%d') }}{% else %}{{ today.strftime('%Y-%m-%d') }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" id="end_date" name="end_date" class="form-control"
+                                    value="{% if edit_mode and task.end_date %}{{ task.end_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                <div class="form-text">Optional deadline</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estimation & Billing -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Estimation & Billing</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                                <input type="number" id="estimated_hours" name="estimated_hours" class="form-control" step="0.01" min="0"
+                                    value="{% if edit_mode and task.estimated_hours %}{{ task.estimated_hours }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="estimated_cost" class="form-label">Estimated Cost</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" id="estimated_cost" name="estimated_cost" class="form-control" step="0.01" min="0"
+                                        value="{% if edit_mode and task.estimated_cost %}{{ task.estimated_cost }}{% endif %}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mt-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_billable" name="is_billable"
+                                        {% if not edit_mode or task.is_billable %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_billable">Task is billable</label>
+                                </div>
+                                <div class="form-text">If unchecked, time logged for this task will not be billable</div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="billing_rate" class="form-label">Billing Rate (per hour)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" id="billing_rate" name="billing_rate" class="form-control" step="0.01" min="0"
+                                        value="{% if edit_mode and task.billing_rate %}{{ task.billing_rate }}{% endif %}">
+                                </div>
+                                <div class="form-text">Optional - task-specific billing rate (will override project rate)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Assignment -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Assignment</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="assignee_id" class="form-label">Assigned To</label>
+                                <select id="assignee_id" name="assignee_id" class="form-select">
+                                    <option value="">-- Unassigned --</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" 
+                                        {% if edit_mode and task.assignee_id == user.id %}selected{% endif %}
+                                        {% if not edit_mode and user.id == current_user.id %}selected{% endif %}>
+                                        {{ user.username }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Task Status -->
+                    {% if edit_mode %}
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Status</h6>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="is_completed" name="is_completed"
+                                {% if task.is_completed %}checked{% endif %}>
+                            <label class="form-check-label" for="is_completed">Mark as completed</label>
+                        </div>
+                        {% if task.is_completed and task.completion_date %}
+                        <div class="form-text">Completed on {{ task.completion_date.strftime('%b %d, %Y') }}</div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="text-end mt-4">
+                        {% if edit_mode %}
+                        <a href="{{ url_for('projects.project_tasks', project_id=project.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        {% else %}
+                        <a href="{{ url_for('projects.project_tasks', project_id=project.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Task</button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
