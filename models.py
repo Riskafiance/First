@@ -5,6 +5,7 @@ from app import db
 from flask_login import UserMixin
 from datetime import datetime, date
 from enum import Enum
+from sqlalchemy.ext.hybrid import hybrid_property
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # User roles and permissions
@@ -957,3 +958,205 @@ class ReconciliationRule(db.Model):
     
     def __repr__(self):
         return f"<ReconciliationRule {self.name}>"
+
+# Project Status
+class ProjectStatus(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    
+    # Constants
+    PLANNED = 'Planned'
+    IN_PROGRESS = 'In Progress'
+    ON_HOLD = 'On Hold'
+    COMPLETED = 'Completed'
+    CANCELLED = 'Cancelled'
+    
+    def __repr__(self):
+        return f'<ProjectStatus {self.name}>'
+
+# Project
+class Project(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_code = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    entity_id = db.Column(db.Integer, db.ForeignKey('entity.id'))  # Client/Customer
+    entity = db.relationship('Entity')
+    status_id = db.Column(db.Integer, db.ForeignKey('project_status.id'), nullable=False)
+    status = db.relationship('ProjectStatus')
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date)
+    estimated_hours = db.Column(db.Numeric(10, 2))
+    estimated_cost = db.Column(db.Numeric(14, 2))
+    budget_amount = db.Column(db.Numeric(14, 2))
+    is_fixed_price = db.Column(db.Boolean, default=False)
+    fixed_price_amount = db.Column(db.Numeric(14, 2))
+    is_billable = db.Column(db.Boolean, default=True)
+    notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    manager = db.relationship('User', foreign_keys=[manager_id])
+    
+    @hybrid_property
+    def actual_hours(self):
+        """Calculate the total hours logged to the project"""
+        from sqlalchemy import func
+        hours = db.session.query(func.sum(TimeEntry.hours)).filter(
+            TimeEntry.project_id == self.id,
+            TimeEntry.is_approved == True
+        ).scalar() or 0
+        return hours
+    
+    @hybrid_property
+    def actual_cost(self):
+        """Calculate the total cost of the project"""
+        from sqlalchemy import func
+        # Cost from time entries
+        time_cost = db.session.query(func.sum(TimeEntry.cost_amount)).filter(
+            TimeEntry.project_id == self.id,
+            TimeEntry.is_approved == True
+        ).scalar() or Decimal('0.00')
+        
+        # Cost from expenses
+        expense_cost = db.session.query(func.sum(ProjectExpense.amount)).filter(
+            ProjectExpense.project_id == self.id,
+            ProjectExpense.is_approved == True
+        ).scalar() or Decimal('0.00')
+        
+        return time_cost + expense_cost
+    
+    @hybrid_property
+    def budget_variance(self):
+        """Calculate the variance between budget and actual cost"""
+        if not self.budget_amount:
+            return None
+        return self.budget_amount - self.actual_cost
+    
+    @hybrid_property
+    def budget_variance_percentage(self):
+        """Calculate the percentage variance between budget and actual cost"""
+        if not self.budget_amount or self.budget_amount == 0:
+            return None
+        return (self.budget_variance / self.budget_amount) * 100
+    
+    @hybrid_property
+    def completion_percentage(self):
+        """Calculate the completion percentage based on task status"""
+        if not self.tasks:
+            return 0
+        
+        completed_tasks = sum(1 for task in self.tasks if task.is_completed)
+        return (completed_tasks / len(self.tasks)) * 100
+    
+    def __repr__(self):
+        return f'<Project {self.project_code} - {self.name}>'
+
+# Job Task
+class JobTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    project = db.relationship('Project', backref='tasks')
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text)
+    start_date = db.Column(db.Date)
+    end_date = db.Column(db.Date)
+    estimated_hours = db.Column(db.Numeric(10, 2))
+    estimated_cost = db.Column(db.Numeric(14, 2))
+    is_billable = db.Column(db.Boolean, default=True)
+    billing_rate = db.Column(db.Numeric(14, 2))
+    is_completed = db.Column(db.Boolean, default=False)
+    completion_date = db.Column(db.Date)
+    parent_task_id = db.Column(db.Integer, db.ForeignKey('job_task.id'))
+    parent_task = db.relationship('JobTask', remote_side=[id], backref='subtasks')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee = db.relationship('User', foreign_keys=[assignee_id])
+    
+    @hybrid_property
+    def actual_hours(self):
+        """Calculate the total hours logged to the task"""
+        from sqlalchemy import func
+        hours = db.session.query(func.sum(TimeEntry.hours)).filter(
+            TimeEntry.task_id == self.id,
+            TimeEntry.is_approved == True
+        ).scalar() or 0
+        return hours
+    
+    def __repr__(self):
+        return f'<JobTask {self.id} - {self.name}>'
+
+# Time Entry
+class TimeEntry(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    project = db.relationship('Project', backref='time_entries')
+    task_id = db.Column(db.Integer, db.ForeignKey('job_task.id'))
+    task = db.relationship('JobTask', backref='time_entries')
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user = db.relationship('User', foreign_keys=[user_id])
+    date = db.Column(db.Date, nullable=False)
+    hours = db.Column(db.Numeric(5, 2), nullable=False)
+    description = db.Column(db.Text)
+    is_billable = db.Column(db.Boolean, default=True)
+    billing_rate = db.Column(db.Numeric(14, 2))
+    cost_rate = db.Column(db.Numeric(14, 2))
+    cost_amount = db.Column(db.Numeric(14, 2))
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey('invoice_item.id'))
+    invoice_item = db.relationship('InvoiceItem')
+    is_approved = db.Column(db.Boolean, default=False)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
+    approved_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    @hybrid_property
+    def billable_amount(self):
+        """Calculate the billable amount for this time entry"""
+        if not self.is_billable or not self.billing_rate:
+            return Decimal('0.00')
+        return self.hours * self.billing_rate
+    
+    def __repr__(self):
+        return f'<TimeEntry {self.id} - {self.user.username} - {self.date}>'
+
+# Project Expense
+class ProjectExpense(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), nullable=False)
+    project = db.relationship('Project', backref='expenses')
+    task_id = db.Column(db.Integer, db.ForeignKey('job_task.id'))
+    task = db.relationship('JobTask', backref='expenses')
+    expense_id = db.Column(db.Integer, db.ForeignKey('expense.id'))
+    expense = db.relationship('Expense')
+    date = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(255), nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    account_id = db.Column(db.Integer, db.ForeignKey('account.id'), nullable=False)
+    account = db.relationship('Account')
+    is_billable = db.Column(db.Boolean, default=True)
+    markup_percentage = db.Column(db.Numeric(5, 2), default=0)
+    invoice_item_id = db.Column(db.Integer, db.ForeignKey('invoice_item.id'))
+    invoice_item = db.relationship('InvoiceItem')
+    is_approved = db.Column(db.Boolean, default=False)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
+    approved_at = db.Column(db.DateTime)
+    receipt_file = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+    
+    @hybrid_property
+    def billable_amount(self):
+        """Calculate the billable amount including markup"""
+        if not self.is_billable:
+            return Decimal('0.00')
+        markup = Decimal('1.00') + (self.markup_percentage or Decimal('0.00')) / 100
+        return self.amount * markup
+    
+    def __repr__(self):
+        return f'<ProjectExpense {self.id} - {self.description}>'

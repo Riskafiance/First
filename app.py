@@ -100,6 +100,7 @@ from routes.reports import reports_bp
 from routes.fixed_assets import setup_assets_blueprint
 from routes.budgeting import budgeting_bp
 from routes.bank_reconciliation import bank_reconciliation_bp
+from routes.projects import projects_bp
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(profile_bp)
@@ -113,6 +114,7 @@ app.register_blueprint(inventory_bp, url_prefix='/inventory')
 app.register_blueprint(reports_bp)
 app.register_blueprint(budgeting_bp, url_prefix='/budgeting')
 app.register_blueprint(bank_reconciliation_bp, url_prefix='/banking')
+app.register_blueprint(projects_bp, url_prefix='/projects')
 
 # Setup fixed assets blueprint
 setup_assets_blueprint(app)

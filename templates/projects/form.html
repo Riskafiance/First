@@ -1,0 +1,202 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+{% if edit_mode %}Edit Project - {{ project.name }}{% else %}Create New Project{% endif %}
+{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        {% if edit_mode %}Edit Project: {{ project.project_code }}{% else %}Create New Project{% endif %}
+    </h1>
+    
+    <div class="btn-group" role="group">
+        {% if edit_mode %}
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i> Cancel
+        </a>
+        {% else %}
+        <a href="{{ url_for('projects.projects_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Projects
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% if edit_mode %}{{ url_for('projects.edit_project', project_id=project.id) }}{% else %}{{ url_for('projects.create_project') }}{% endif %}">
+                    <!-- Basic Information -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Basic Information</h6>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label for="name" class="form-label">Project Name <span class="text-danger">*</span></label>
+                                <input type="text" id="name" name="name" class="form-control" required 
+                                    value="{% if edit_mode %}{{ project.name }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="status_id" class="form-label">Status <span class="text-danger">*</span></label>
+                                <select id="status_id" name="status_id" class="form-select" required>
+                                    {% for status in statuses %}
+                                    <option value="{{ status.id }}" 
+                                        {% if edit_mode and project.status_id == status.id %}selected{% endif %}
+                                        {% if not edit_mode and status.name == 'Planned' %}selected{% endif %}>
+                                        {{ status.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea id="description" name="description" class="form-control" rows="3">{% if edit_mode %}{{ project.description }}{% endif %}</textarea>
+                            </div>
+                            
+                            <div class="col-md-12">
+                                <label for="entity_id" class="form-label">Client</label>
+                                <select id="entity_id" name="entity_id" class="form-select">
+                                    <option value="">-- Select Client (Optional) --</option>
+                                    {% for customer in customers %}
+                                    <option value="{{ customer.id }}" 
+                                        {% if edit_mode and project.entity_id == customer.id %}selected{% endif %}>
+                                        {{ customer.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Associate this project with a client for invoicing purposes</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Date & Schedule -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Date & Schedule</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="start_date" class="form-label">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" id="start_date" name="start_date" class="form-control" required
+                                    value="{% if edit_mode %}{{ project.start_date.strftime('%Y-%m-%d') }}{% else %}{{ today.strftime('%Y-%m-%d') }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" id="end_date" name="end_date" class="form-control"
+                                    value="{% if edit_mode and project.end_date %}{{ project.end_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                <div class="form-text">Optional target completion date</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Budget & Billing -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Budget & Billing</h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="estimated_hours" class="form-label">Estimated Hours</label>
+                                <input type="number" id="estimated_hours" name="estimated_hours" class="form-control" step="0.01" min="0"
+                                    value="{% if edit_mode and project.estimated_hours %}{{ project.estimated_hours }}{% endif %}">
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="estimated_cost" class="form-label">Estimated Cost</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" id="estimated_cost" name="estimated_cost" class="form-control" step="0.01" min="0"
+                                        value="{% if edit_mode and project.estimated_cost %}{{ project.estimated_cost }}{% endif %}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="budget_amount" class="form-label">Budget Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" id="budget_amount" name="budget_amount" class="form-control" step="0.01" min="0"
+                                        value="{% if edit_mode and project.budget_amount %}{{ project.budget_amount }}{% endif %}">
+                                </div>
+                            </div>
+                            
+                            <div class="col-12 mt-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_billable" name="is_billable"
+                                        {% if not edit_mode or project.is_billable %}checked{% endif %}>
+                                    <label class="form-check-label" for="is_billable">Project is billable</label>
+                                </div>
+                                <div class="form-text">If unchecked, time and expenses for this project will be non-billable by default</div>
+                            </div>
+                            
+                            <div class="col-12 mt-2">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="is_fixed_price" name="is_fixed_price"
+                                        {% if edit_mode and project.is_fixed_price %}checked{% endif %}
+                                        onchange="document.getElementById('fixed_price_amount_container').style.display = this.checked ? 'block' : 'none';">
+                                    <label class="form-check-label" for="is_fixed_price">Fixed price project</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6" id="fixed_price_amount_container" style="display: {% if edit_mode and project.is_fixed_price %}block{% else %}none{% endif %};">
+                                <label for="fixed_price_amount" class="form-label">Fixed Price Amount</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" id="fixed_price_amount" name="fixed_price_amount" class="form-control" step="0.01" min="0"
+                                        value="{% if edit_mode and project.fixed_price_amount %}{{ project.fixed_price_amount }}{% endif %}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Assignment -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Assignment</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="manager_id" class="form-label">Project Manager</label>
+                                <select id="manager_id" name="manager_id" class="form-select">
+                                    <option value="">-- Select Project Manager (Optional) --</option>
+                                    {% for manager in managers %}
+                                    <option value="{{ manager.id }}" 
+                                        {% if edit_mode and project.manager_id == manager.id %}selected{% endif %}
+                                        {% if not edit_mode and manager.id == current_user.id %}selected{% endif %}>
+                                        {{ manager.username }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Additional Notes</h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label for="notes" class="form-label">Notes</label>
+                                <textarea id="notes" name="notes" class="form-control" rows="3">{% if edit_mode %}{{ project.notes }}{% endif %}</textarea>
+                                <div class="form-text">Internal notes about this project (not visible to clients)</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        {% if edit_mode %}
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        {% else %}
+                        <a href="{{ url_for('projects.projects_list') }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Create Project</button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

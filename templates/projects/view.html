@@ -1,0 +1,455 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ project.name }} | Project Details{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{{ project.name }}</h1>
+        <p class="text-muted mb-0">{{ project.project_code }}</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.projects_list') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Projects
+        </a>
+        
+        {% if current_user.has_permission(Role.CAN_EDIT) %}
+        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-1"></i> Edit Project
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Project summary cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box rounded-circle bg-light-primary text-primary me-3">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Status</h6>
+                        <span class="badge rounded-pill 
+                            {% if project.status.name == 'In Progress' %}bg-success{% endif %}
+                            {% if project.status.name == 'Planned' %}bg-info{% endif %}
+                            {% if project.status.name == 'On Hold' %}bg-warning{% endif %}
+                            {% if project.status.name == 'Completed' %}bg-secondary{% endif %}
+                            {% if project.status.name == 'Cancelled' %}bg-danger{% endif %}">
+                            {{ project.status.name }}
+                        </span>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-muted small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Start Date:</span>
+                        <span>{{ project.start_date.strftime('%b %d, %Y') }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>End Date:</span>
+                        <span>{{ project.end_date.strftime('%b %d, %Y') if project.end_date else 'Not set' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box rounded-circle bg-light-success text-success me-3">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Budget</h6>
+                        <span>{{ project.budget_amount|format_currency if project.budget_amount else 'Not set' }}</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-muted small">
+                    {% if project.budget_amount %}
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Spent:</span>
+                        <span>{{ project.actual_cost|format_currency }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Remaining:</span>
+                        <span class="{% if project.budget_variance and project.budget_variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ project.budget_variance|format_currency if project.budget_variance else '0.00' }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="text-center">
+                        <em>No budget has been set for this project</em>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box rounded-circle bg-light-info text-info me-3">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Time Tracking</h6>
+                        <span>{{ project.actual_hours|default(0) }} hours logged</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-muted small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span>Estimated:</span>
+                        <span>{{ project.estimated_hours|default(0) }} hours</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Billable:</span>
+                        <span>{{ time_summary.total_billable|default(0)|format_currency }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="icon-box rounded-circle bg-light-warning text-warning me-3">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div>
+                        <h6 class="fw-bold mb-0">Completion</h6>
+                        <span>{{ project.completion_percentage|default(0)|round|int }}% complete</span>
+                    </div>
+                </div>
+                <hr>
+                <div class="progress mb-2" style="height: 8px;">
+                    <div class="progress-bar 
+                        {% if project.status.name == 'On Hold' %}bg-warning{% endif %}
+                        {% if project.status.name == 'Completed' %}bg-success{% endif %}"
+                        role="progressbar" 
+                        style="width: {{ project.completion_percentage|default(0)|round|int }}%;" 
+                        aria-valuenow="{{ project.completion_percentage|default(0)|round|int }}" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
+                    </div>
+                </div>
+                <div class="text-center text-muted small">
+                    {% if tasks|length > 0 %}
+                    {{ tasks|selectattr('is_completed', 'eq', true)|list|length }} of {{ tasks|length }} tasks completed
+                    {% else %}
+                    No tasks created yet
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Project details -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Client</h6>
+                            <p>
+                                {% if project.entity %}
+                                <a href="{{ url_for('entities.view_entity', entity_id=project.entity.id) }}" class="link-primary">
+                                    {{ project.entity.name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">No client assigned</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted">Project Manager</h6>
+                            <p>
+                                {% if project.manager %}
+                                {{ project.manager.username }}
+                                {% else %}
+                                <span class="text-muted">No manager assigned</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted">Created By</h6>
+                            <p>{{ project.created_by.username }} on {{ project.created_at.strftime('%b %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Billing Type</h6>
+                            <p>
+                                {% if project.is_fixed_price %}
+                                Fixed Price: {{ project.fixed_price_amount|format_currency }}
+                                {% else %}
+                                Time & Materials
+                                {% endif %}
+                                <span class="ms-2 badge bg-{{ 'success' if project.is_billable else 'secondary' }}">
+                                    {{ 'Billable' if project.is_billable else 'Non-billable' }}
+                                </span>
+                            </p>
+                        </div>
+                        
+                        {% if time_summary and expense_summary %}
+                        <div class="mb-3">
+                            <h6 class="text-muted">Project Value</h6>
+                            <p>
+                                {% if project.is_fixed_price and project.fixed_price_amount %}
+                                {{ project.fixed_price_amount|format_currency }}
+                                {% else %}
+                                {{ (time_summary.total_billable or 0) + (expense_summary.total_billable or 0)|format_currency }}
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <h6 class="text-muted">Cost to Date</h6>
+                            <p>{{ project.actual_cost|format_currency }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if project.description %}
+                <div class="mb-3">
+                    <h6 class="text-muted">Description</h6>
+                    <p>{{ project.description|nl2br }}</p>
+                </div>
+                {% endif %}
+                
+                {% if project.notes %}
+                <div>
+                    <h6 class="text-muted">Internal Notes</h6>
+                    <p>{{ project.notes|nl2br }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Task summary -->
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Tasks</h5>
+                <a href="{{ url_for('projects.project_tasks', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-tasks me-1"></i> Manage Tasks
+                </a>
+            </div>
+            <div class="card-body">
+                {% if tasks %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <th style="width: 40%">Task</th>
+                                <th>Status</th>
+                                <th>Assigned To</th>
+                                <th class="text-end">Hours</th>
+                                <th style="width: 80px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in tasks %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-circle me-2 
+                                            {% if task.is_completed %}text-success{% else %}text-primary{% endif %}" 
+                                            style="font-size: 0.5rem;"></i>
+                                        <div>
+                                            <div>{{ task.name }}</div>
+                                            {% if task.subtasks %}
+                                            <div class="small text-muted">
+                                                {{ task.subtasks|selectattr('is_completed', 'eq', true)|list|length }} / {{ task.subtasks|length }} subtasks
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill {% if task.is_completed %}bg-success{% else %}bg-primary{% endif %}">
+                                        {{ 'Completed' if task.is_completed else 'In Progress' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if task.assignee %}
+                                    {{ task.assignee.username }}
+                                    {% else %}
+                                    <span class="text-muted">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {{ task.actual_hours|default(0) }}
+                                    {% if task.estimated_hours %}
+                                    <span class="text-muted small">/ {{ task.estimated_hours }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('projects.edit_task', project_id=project.id, task_id=task.id) }}" class="btn btn-sm btn-outline-secondary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i> No tasks have been created for this project.
+                    <a href="{{ url_for('projects.create_task', project_id=project.id) }}" class="alert-link">Create a task</a>
+                </div>
+                {% endif %}
+            </div>
+            {% if tasks %}
+            <div class="card-footer text-end">
+                <a href="{{ url_for('projects.create_task', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-plus me-1"></i> Add Task
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Quick links -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-clock me-1"></i> Log Time
+                    </a>
+                    
+                    <a href="{{ url_for('projects.add_expense', project_id=project.id) }}" class="btn btn-outline-primary">
+                        <i class="fas fa-receipt me-1"></i> Add Expense
+                    </a>
+                    
+                    <a href="{{ url_for('projects.project_billing', project_id=project.id) }}" class="btn btn-outline-success">
+                        <i class="fas fa-file-invoice-dollar me-1"></i> Create Invoice
+                    </a>
+                    
+                    <a href="{{ url_for('projects.project_reports', project_id=project.id) }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar me-1"></i> Project Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent time entries -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Time Entries</h5>
+                <a href="{{ url_for('projects.project_time', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_time %}
+                <div class="list-group list-group-flush">
+                    {% for entry in recent_time %}
+                    <div class="list-group-item ps-0 pe-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-clock text-muted me-2"></i>
+                                    <strong>{{ entry.hours }} hours</strong>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    {{ entry.user.username }} - {{ entry.date.strftime('%b %d, %Y') }}
+                                </div>
+                                {% if entry.description %}
+                                <div class="small">{{ entry.description }}</div>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <span class="badge bg-{{ 'success' if entry.is_billable else 'secondary' }}">
+                                    {{ 'Billable' if entry.is_billable else 'Non-billable' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <p>No time entries recorded yet</p>
+                    <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> Log Time
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Recent expenses -->
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Recent Expenses</h5>
+                <a href="{{ url_for('projects.project_expenses', project_id=project.id) }}" class="btn btn-sm btn-outline-secondary">
+                    View All
+                </a>
+            </div>
+            <div class="card-body">
+                {% if recent_expenses %}
+                <div class="list-group list-group-flush">
+                    {% for expense in recent_expenses %}
+                    <div class="list-group-item ps-0 pe-0">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-receipt text-muted me-2"></i>
+                                    <strong>{{ expense.description }}</strong>
+                                </div>
+                                <div class="small text-muted mt-1">
+                                    {{ expense.date.strftime('%b %d, %Y') }}
+                                </div>
+                                <div class="small">{{ expense.account.name }}</div>
+                            </div>
+                            <div class="text-end">
+                                <div>{{ expense.amount|format_currency }}</div>
+                                <span class="badge bg-{{ 'success' if expense.is_billable else 'secondary' }}">
+                                    {{ 'Billable' if expense.is_billable else 'Non-billable' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-3">
+                    <p>No expenses recorded yet</p>
+                    <a href="{{ url_for('projects.add_expense', project_id=project.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i> Add Expense
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
