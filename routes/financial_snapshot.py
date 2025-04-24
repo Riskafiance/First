@@ -128,17 +128,35 @@ def financial_snapshot():
             debt_to_assets = 0
         
         # Prepare data for charts
+        # The get_monthly_trends function returns a list of dictionaries with month, income, and expenses
         income_expense_chart = []
-        months_data = trends.get('months', [])
-        income_data = trends.get('income', {})
-        expense_data = trends.get('expenses', {})
         
-        for month in months_data:
+        # Create a dictionary structure from the list for API endpoints
+        structured_trends = {
+            'months': [],
+            'income': {},
+            'expenses': {}
+        }
+        
+        for item in trends:
+            month = item['month']
+            income = item['income']
+            expense = item['expenses']
+            
+            # Build chart data directly
             income_expense_chart.append({
                 'month': month,
-                'income': income_data.get(month, 0),
-                'expense': expense_data.get(month, 0)
+                'income': income,
+                'expense': expense
             })
+            
+            # Build structured format for API endpoints
+            structured_trends['months'].append(month)
+            structured_trends['income'][month] = income
+            structured_trends['expenses'][month] = expense
+            
+        # Replace the list with the structured format for API endpoints
+        trends = structured_trends
         
         return render_template(
             'reports/financial_snapshot.html',
@@ -178,17 +196,15 @@ def get_financial_data():
         months = int(request.args.get('months', '6'))
         
         if chart_type == 'income_expense':
-            trends = get_monthly_trends(months=months)
+            trends_data = get_monthly_trends(months=months)
             chart_data = []
-            months_data = trends.get('months', [])
-            income_data = trends.get('income', {})
-            expense_data = trends.get('expenses', {})
             
-            for month in months_data:
+            # Direct conversion from the data returned by get_monthly_trends
+            for item in trends_data:
                 chart_data.append({
-                    'month': month,
-                    'income': income_data.get(month, 0),
-                    'expense': expense_data.get(month, 0)
+                    'month': item['month'],
+                    'income': item['income'],
+                    'expense': item['expenses']
                 })
             return jsonify({'data': chart_data})
         
