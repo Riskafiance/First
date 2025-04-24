@@ -100,6 +100,11 @@
             </div>
             <div class="card-body">
                 <div class="list-group">
+                    <a href="{{ url_for('snapshot.financial_snapshot') }}" class="list-group-item list-group-item-action d-flex align-items-center bg-light">
+                        <i class="fas fa-chart-pie me-3 text-primary"></i>
+                        <span class="fw-bold">Financial Snapshot</span>
+                        <span class="badge bg-primary ms-auto">New</span>
+                    </a>
                     <a href="{{ url_for('accounts.index') }}" class="list-group-item list-group-item-action d-flex align-items-center">
                         <i class="fas fa-list me-3"></i>
                         <span>Chart of Accounts</span>

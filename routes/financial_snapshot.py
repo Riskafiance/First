@@ -129,11 +129,15 @@ def financial_snapshot():
         
         # Prepare data for charts
         income_expense_chart = []
-        for month in trends['months']:
+        months_data = trends.get('months', [])
+        income_data = trends.get('income', {})
+        expense_data = trends.get('expenses', {})
+        
+        for month in months_data:
             income_expense_chart.append({
                 'month': month,
-                'income': trends['income'][month],
-                'expense': trends['expenses'][month]
+                'income': income_data.get(month, 0),
+                'expense': expense_data.get(month, 0)
             })
         
         return render_template(
@@ -176,11 +180,15 @@ def get_financial_data():
         if chart_type == 'income_expense':
             trends = get_monthly_trends(months=months)
             chart_data = []
-            for month in trends['months']:
+            months_data = trends.get('months', [])
+            income_data = trends.get('income', {})
+            expense_data = trends.get('expenses', {})
+            
+            for month in months_data:
                 chart_data.append({
                     'month': month,
-                    'income': trends['income'][month],
-                    'expense': trends['expenses'][month]
+                    'income': income_data.get(month, 0),
+                    'expense': expense_data.get(month, 0)
                 })
             return jsonify({'data': chart_data})
         

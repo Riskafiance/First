@@ -216,6 +216,12 @@
                     </a>
                 </li>
                 
+                <li class="nav-item">
+                    <a href="{{ url_for('snapshot.financial_snapshot') }}" class="nav-link {{ 'active' if request.endpoint == 'snapshot.financial_snapshot' }}">
+                        <i class="fas fa-chart-pie"></i> Financial Snapshot
+                    </a>
+                </li>
+                
                 <!-- Financial Management -->
                 <li class="nav-item">
                     <a href="#" class="nav-link" data-bs-toggle="collapse" data-bs-target="#financialMenu">
