@@ -1,0 +1,81 @@
+{% extends 'layout.html' %}
+
+{% block title %}Edit Forecast - {{ forecast.name }}{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Edit Forecast</h1>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('budgeting.view_forecast', forecast_id=forecast.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Forecast
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Edit Forecast Details</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Forecast Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" name="name" class="form-control" value="{{ forecast.name }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea id="description" name="description" class="form-control" rows="3">{{ forecast.description }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if forecast.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">Is Active</label>
+                        <div class="form-text">Active forecasts are used in reports and dashboards</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Created By</label>
+                            <p class="form-control-plaintext">{{ forecast.created_by.username if forecast.created_by else 'System' }}</p>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Created On</label>
+                            <p class="form-control-plaintext">{{ forecast.created_at.strftime('%b %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Period Type</label>
+                            <p class="form-control-plaintext">{{ forecast.period_type.name }}</p>
+                            <div class="form-text">Period type cannot be changed after creation</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Date Range</label>
+                            <p class="form-control-plaintext">{{ forecast.start_date.strftime('%b %d, %Y') }} - {{ forecast.end_date.strftime('%b %d, %Y') }}</p>
+                            <div class="form-text">Date range cannot be changed after creation</div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>To add or modify forecast data for specific accounts and periods, return to the forecast view page.
+                    </div>
+                    
+                    <div class="text-end mt-4">
+                        <a href="{{ url_for('budgeting.view_forecast', forecast_id=forecast.id) }}" class="btn btn-outline-secondary me-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
