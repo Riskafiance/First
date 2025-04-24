@@ -67,15 +67,38 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
     Get actual vs budget data for the given budget and date range
     Returns a dictionary with account data and summary info
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Starting get_actual_vs_budget for budget_id: {budget_id}, start_date: {start_date}, end_date: {end_date}")
+    
     # Get the budget
     budget = Budget.query.get_or_404(budget_id)
+    logger.debug(f"Found budget: {budget.name}")
     
     # Get budget items
     budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
+    logger.debug(f"Found {len(budget_items)} budget items")
     
     # Get all accounts with budget items
     account_ids = set(item.account_id for item in budget_items)
+    logger.debug(f"Account IDs found: {account_ids}")
+    
+    # Handle case where there are no budget items yet
+    if not account_ids:
+        logger.debug("No account IDs found, returning empty data")
+        return {
+            'budget': budget,
+            'accounts': [],
+            'summary': {
+                'budget_total': Decimal('0.00'),
+                'actual_total': Decimal('0.00'),
+                'variance_total': Decimal('0.00'),
+                'variance_percent': 0
+            }
+        }
+    
     accounts = Account.query.filter(Account.id.in_(account_ids)).all()
+    logger.debug(f"Found {len(accounts)} accounts")
     
     # Create a lookup for budget amounts
     budget_amounts = {}
@@ -91,7 +114,12 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
         actuals[account.id] = {}
         
         # Create a mapping of period to date range
-        periods = generate_budget_periods(budget.period_type.name, budget.year)
+        try:
+            periods = generate_budget_periods(budget.period_type.name, budget.year)
+            logger.debug(f"Generated {len(periods)} periods for account {account.id}")
+        except Exception as e:
+            logger.error(f"Error generating periods: {str(e)}")
+            periods = []
         
         for period_info in periods:
             period = period_info['period']
@@ -103,13 +131,18 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
                 continue
             
             # Get actual amounts from journal entries
-            actual_amount = utils.get_account_balance(
-                account.id, 
-                period_start, 
-                period_end
-            )
-            
-            actuals[account.id][period] = actual_amount
+            try:
+                logger.debug(f"Getting balance for account {account.id} from {period_start} to {period_end}")
+                actual_amount = utils.get_account_balance(
+                    account.id, 
+                    period_start, 
+                    period_end
+                )
+                logger.debug(f"Got actual amount: {actual_amount}")
+                actuals[account.id][period] = actual_amount
+            except Exception as e:
+                logger.error(f"Error getting account balance: {str(e)}")
+                actuals[account.id][period] = Decimal('0.00')
     
     # Prepare result
     result = {
@@ -123,61 +156,116 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
         }
     }
     
-    # Process each account
-    for account in accounts:
-        account_data = {
-            'account': account,
-            'periods': [],
-            'budget_total': Decimal('0.00'),
-            'actual_total': Decimal('0.00'),
-            'variance_total': Decimal('0.00'),
-            'variance_percent': 0
-        }
-        
-        # Get data for each period
-        for period_info in periods:
-            period = period_info['period']
-            
-            # Only include periods in our date range
-            if period_info['end_date'] < start_date or period_info['start_date'] > end_date:
+    try:
+        logger.debug("Processing account data")
+        # Process each account
+        for account in accounts:
+            try:
+                account_data = {
+                    'account': account,
+                    'periods': [],
+                    'budget_total': Decimal('0.00'),
+                    'actual_total': Decimal('0.00'),
+                    'variance_total': Decimal('0.00'),
+                    'variance_percent': 0
+                }
+                
+                # Get periods again to ensure we have them for each account
+                try:
+                    account_periods = generate_budget_periods(budget.period_type.name, budget.year)
+                except Exception as e:
+                    logger.error(f"Error regenerating periods for account {account.id}: {str(e)}")
+                    account_periods = []
+                
+                # Get data for each period
+                for period_info in account_periods:
+                    try:
+                        period = period_info['period']
+                        
+                        # Only include periods in our date range
+                        if period_info['end_date'] < start_date or period_info['start_date'] > end_date:
+                            continue
+                        
+                        # Get budget amount
+                        try:
+                            budget_amount = budget_amounts.get(account.id, {}).get(period, Decimal('0.00'))
+                            if not isinstance(budget_amount, Decimal):
+                                budget_amount = Decimal(str(budget_amount))
+                        except Exception as e:
+                            logger.error(f"Error getting budget amount for account {account.id}, period {period}: {str(e)}")
+                            budget_amount = Decimal('0.00')
+                        
+                        # Get actual amount
+                        try:
+                            actual_amount = actuals.get(account.id, {}).get(period, Decimal('0.00'))
+                            if not isinstance(actual_amount, Decimal):
+                                actual_amount = Decimal(str(actual_amount))
+                        except Exception as e:
+                            logger.error(f"Error getting actual amount for account {account.id}, period {period}: {str(e)}")
+                            actual_amount = Decimal('0.00')
+                        
+                        # Calculate variance
+                        try:
+                            variance = actual_amount - budget_amount
+                            variance_percent = 0
+                            if budget_amount != 0:
+                                variance_percent = (variance / budget_amount) * 100
+                        except Exception as e:
+                            logger.error(f"Error calculating variance for account {account.id}, period {period}: {str(e)}")
+                            variance = Decimal('0.00')
+                            variance_percent = 0
+                        
+                        # Create period data
+                        period_data = {
+                            'period': period,
+                            'name': period_info['name'],
+                            'budget': budget_amount,
+                            'actual': actual_amount,
+                            'variance': variance,
+                            'variance_percent': variance_percent
+                        }
+                        
+                        # Update account totals
+                        account_data['periods'].append(period_data)
+                        account_data['budget_total'] += budget_amount
+                        account_data['actual_total'] += actual_amount
+                    except Exception as e:
+                        logger.error(f"Error processing period {period} for account {account.id}: {str(e)}")
+                        continue
+                
+                # Calculate account totals
+                try:
+                    account_data['variance_total'] = account_data['actual_total'] - account_data['budget_total']
+                    if account_data['budget_total'] != 0:
+                        account_data['variance_percent'] = (account_data['variance_total'] / account_data['budget_total']) * 100
+                except Exception as e:
+                    logger.error(f"Error calculating totals for account {account.id}: {str(e)}")
+                    account_data['variance_total'] = Decimal('0.00')
+                    account_data['variance_percent'] = 0
+                
+                # Add to result
+                result['accounts'].append(account_data)
+                
+                # Update summary totals
+                result['summary']['budget_total'] += account_data['budget_total']
+                result['summary']['actual_total'] += account_data['actual_total']
+            except Exception as e:
+                logger.error(f"Error processing account {account.id}: {str(e)}")
                 continue
-            
-            budget_amount = budget_amounts.get(account.id, {}).get(period, Decimal('0.00'))
-            actual_amount = actuals.get(account.id, {}).get(period, Decimal('0.00'))
-            variance = actual_amount - budget_amount
-            variance_percent = 0
-            if budget_amount != 0:
-                variance_percent = (variance / budget_amount) * 100
-            
-            period_data = {
-                'period': period,
-                'name': period_info['name'],
-                'budget': budget_amount,
-                'actual': actual_amount,
-                'variance': variance,
-                'variance_percent': variance_percent
-            }
-            
-            account_data['periods'].append(period_data)
-            account_data['budget_total'] += budget_amount
-            account_data['actual_total'] += actual_amount
         
-        # Calculate account totals
-        account_data['variance_total'] = account_data['actual_total'] - account_data['budget_total']
-        if account_data['budget_total'] != 0:
-            account_data['variance_percent'] = (account_data['variance_total'] / account_data['budget_total']) * 100
+        # Calculate summary variance
+        try:
+            result['summary']['variance_total'] = result['summary']['actual_total'] - result['summary']['budget_total']
+            if result['summary']['budget_total'] != 0:
+                result['summary']['variance_percent'] = (result['summary']['variance_total'] / result['summary']['budget_total']) * 100
+        except Exception as e:
+            logger.error(f"Error calculating summary variance: {str(e)}")
+            result['summary']['variance_total'] = Decimal('0.00')
+            result['summary']['variance_percent'] = 0
         
-        # Add to result
-        result['accounts'].append(account_data)
-        
-        # Update summary totals
-        result['summary']['budget_total'] += account_data['budget_total']
-        result['summary']['actual_total'] += account_data['actual_total']
-    
-    # Calculate summary variance
-    result['summary']['variance_total'] = result['summary']['actual_total'] - result['summary']['budget_total']
-    if result['summary']['budget_total'] != 0:
-        result['summary']['variance_percent'] = (result['summary']['variance_total'] / result['summary']['budget_total']) * 100
+        logger.debug("Completed get_actual_vs_budget successfully")
+    except Exception as e:
+        logger.error(f"Error in get_actual_vs_budget result processing: {str(e)}")
     
     return result
 
@@ -332,49 +420,87 @@ def create_budget():
 @login_required
 def view_budget(budget_id):
     """View a budget"""
-    budget = Budget.query.get_or_404(budget_id)
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
     
-    # Get budget items
-    budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
-    
-    # Get period info
-    periods = generate_budget_periods(budget.period_type.name, budget.year)
-    
-    # Get all accounts with budget items
-    account_ids = set(item.account_id for item in budget_items)
-    accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
-    
-    # Create a lookup for budget amounts
-    budget_data = {}
-    for account in accounts:
-        budget_data[account.id] = {
-            'account': account,
-            'periods': {}
-        }
-    
-    for item in budget_items:
-        if item.account_id in budget_data:
-            budget_data[item.account_id]['periods'][item.period] = item.amount
-    
-    # Get actual vs budget data
-    variance_data = get_actual_vs_budget(
-        budget_id, 
-        budget.start_date, 
-        min(budget.end_date, datetime.now().date())
-    )
-    
-    # Get budget versions
-    versions = BudgetVersion.query.filter_by(budget_id=budget_id).order_by(BudgetVersion.version_number.desc()).all()
-    
-    return render_template(
-        'budgeting/budget_view.html',
-        budget=budget,
-        budget_data=budget_data,
-        accounts=accounts,
-        periods=periods,
-        variance_data=variance_data,
-        versions=versions
-    )
+    try:
+        logger.debug(f"Starting view_budget for budget_id: {budget_id}")
+        budget = Budget.query.get_or_404(budget_id)
+        logger.debug(f"Found budget: {budget.name}, year: {budget.year}")
+        
+        # Get budget items
+        budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
+        logger.debug(f"Found {len(budget_items)} budget items")
+        
+        # Get period info
+        periods = generate_budget_periods(budget.period_type.name, budget.year)
+        logger.debug(f"Generated {len(periods)} periods")
+        
+        # Get all accounts with budget items
+        account_ids = set(item.account_id for item in budget_items)
+        logger.debug(f"Account IDs: {account_ids}")
+        
+        accounts = []
+        if account_ids:
+            accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
+        logger.debug(f"Found {len(accounts)} accounts")
+        
+        # Create a lookup for budget amounts
+        budget_data = {}
+        for account in accounts:
+            budget_data[account.id] = {
+                'account': account,
+                'periods': {}
+            }
+        
+        for item in budget_items:
+            if item.account_id in budget_data:
+                budget_data[item.account_id]['periods'][item.period] = item.amount
+        
+        logger.debug(f"Created budget_data with {len(budget_data)} entries")
+        
+        # Get actual vs budget data
+        try:
+            variance_data = get_actual_vs_budget(
+                budget_id, 
+                budget.start_date, 
+                min(budget.end_date, datetime.now().date())
+            )
+            logger.debug("Successfully got variance data")
+        except Exception as e:
+            logger.error(f"Error getting variance data: {str(e)}")
+            variance_data = None
+        
+        # Get budget versions
+        versions = BudgetVersion.query.filter_by(budget_id=budget_id).order_by(BudgetVersion.version_number.desc()).all()
+        logger.debug(f"Found {len(versions)} budget versions")
+        
+        # Render the template
+        logger.debug("Rendering budget_view.html template with data")
+        return render_template(
+            'budgeting/budget_view.html',
+            budget=budget,
+            budget_data=budget_data,
+            accounts=accounts,
+            periods=periods,
+            variance_data=variance_data,
+            versions=versions
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in view_budget: {str(e)}")
+        # Return a simple error page instead of a blank page
+        return f"""
+        <html>
+        <head><title>Error</title></head>
+        <body>
+            <h1>Error Viewing Budget</h1>
+            <p>There was an error loading the budget: {str(e)}</p>
+            <a href="{url_for('budgeting.budgets')}">Back to Budgets</a>
+        </body>
+        </html>
+        """
 
 @budgeting_bp.route('/budgets/<int:budget_id>/edit', methods=['GET', 'POST'])
 @login_required
