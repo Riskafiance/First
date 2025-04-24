@@ -11,8 +11,13 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 import calendar
 from sqlalchemy import func, text, case
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 budgeting_bp = Blueprint('budgeting', __name__)
 
@@ -420,22 +425,49 @@ def create_budget():
 @login_required
 def view_budget(budget_id):
     """View a budget"""
-    import logging
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger(__name__)
-    
     try:
         logger.debug(f"Starting view_budget for budget_id: {budget_id}")
         budget = Budget.query.get_or_404(budget_id)
         logger.debug(f"Found budget: {budget.name}, year: {budget.year}")
         
-        # Get budget items
-        budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
-        logger.debug(f"Found {len(budget_items)} budget items")
+        # Verify budget has a valid period type
+        if not budget.period_type:
+            logger.error(f"Budget {budget_id} has no period type")
+            flash('This budget has an invalid period type configuration.', 'danger')
+            return redirect(url_for('budgeting.budgets'))
         
-        # Get period info
-        periods = generate_budget_periods(budget.period_type.name, budget.year)
-        logger.debug(f"Generated {len(periods)} periods")
+        logger.debug(f"Budget period type: {budget.period_type.name}")
+        
+        # Get budget items - catch any potential database errors
+        try:
+            budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
+            logger.debug(f"Found {len(budget_items)} budget items")
+        except Exception as db_error:
+            logger.error(f"Database error getting budget items: {str(db_error)}")
+            budget_items = []
+        
+        # Get period info - safely generate periods with defaults if needed
+        try:
+            periods = generate_budget_periods(budget.period_type.name, budget.year)
+            logger.debug(f"Generated {len(periods)} periods")
+        except Exception as period_error:
+            logger.error(f"Error generating budget periods: {str(period_error)}")
+            # Default to empty periods as a fallback
+            periods = []
+            
+            # Try creating a basic fallback period structure
+            try:
+                if budget.year:
+                    # Create a basic annual period as fallback
+                    periods = [{
+                        'period': 1,
+                        'name': str(budget.year),
+                        'start_date': date(budget.year, 1, 1),
+                        'end_date': date(budget.year, 12, 31)
+                    }]
+                    logger.debug("Created fallback annual period")
+            except Exception as fallback_error:
+                logger.error(f"Error creating fallback periods: {str(fallback_error)}")
         
         # Get all accounts with budget items
         account_ids = set(item.account_id for item in budget_items)
@@ -443,8 +475,11 @@ def view_budget(budget_id):
         
         accounts = []
         if account_ids:
-            accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
-        logger.debug(f"Found {len(accounts)} accounts")
+            try:
+                accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
+                logger.debug(f"Found {len(accounts)} accounts")
+            except Exception as account_error:
+                logger.error(f"Error getting accounts: {str(account_error)}")
         
         # Create a lookup for budget amounts
         budget_data = {}
@@ -454,27 +489,44 @@ def view_budget(budget_id):
                 'periods': {}
             }
         
-        for item in budget_items:
-            if item.account_id in budget_data:
-                budget_data[item.account_id]['periods'][item.period] = item.amount
-        
-        logger.debug(f"Created budget_data with {len(budget_data)} entries")
+        try:
+            for item in budget_items:
+                if item.account_id in budget_data:
+                    # Ensure amount is a Decimal
+                    try:
+                        if not isinstance(item.amount, Decimal):
+                            amount = Decimal(str(item.amount))
+                        else:
+                            amount = item.amount
+                    except (InvalidOperation, TypeError):
+                        logger.error(f"Error converting budget amount to Decimal for item {item.id}")
+                        amount = Decimal('0.00')
+                        
+                    budget_data[item.account_id]['periods'][item.period] = amount
+            logger.debug(f"Created budget_data with {len(budget_data)} entries")
+        except Exception as budget_error:
+            logger.error(f"Error creating budget data: {str(budget_error)}")
         
         # Get actual vs budget data
+        variance_data = None
         try:
-            variance_data = get_actual_vs_budget(
-                budget_id, 
-                budget.start_date, 
-                min(budget.end_date, datetime.now().date())
-            )
-            logger.debug("Successfully got variance data")
-        except Exception as e:
-            logger.error(f"Error getting variance data: {str(e)}")
-            variance_data = None
+            if budget.start_date and budget.end_date:
+                variance_data = get_actual_vs_budget(
+                    budget_id, 
+                    budget.start_date, 
+                    min(budget.end_date, datetime.now().date())
+                )
+                logger.debug("Successfully got variance data")
+        except Exception as variance_error:
+            logger.error(f"Error getting variance data: {str(variance_error)}")
         
         # Get budget versions
-        versions = BudgetVersion.query.filter_by(budget_id=budget_id).order_by(BudgetVersion.version_number.desc()).all()
-        logger.debug(f"Found {len(versions)} budget versions")
+        versions = []
+        try:
+            versions = BudgetVersion.query.filter_by(budget_id=budget_id).order_by(BudgetVersion.version_number.desc()).all()
+            logger.debug(f"Found {len(versions)} budget versions")
+        except Exception as version_error:
+            logger.error(f"Error getting budget versions: {str(version_error)}")
         
         # Render the template
         logger.debug("Rendering budget_view.html template with data")
@@ -490,197 +542,322 @@ def view_budget(budget_id):
         
     except Exception as e:
         logger.error(f"Error in view_budget: {str(e)}")
-        # Return a simple error page instead of a blank page
-        return f"""
-        <html>
-        <head><title>Error</title></head>
-        <body>
-            <h1>Error Viewing Budget</h1>
-            <p>There was an error loading the budget: {str(e)}</p>
-            <a href="{url_for('budgeting.budgets')}">Back to Budgets</a>
-        </body>
-        </html>
-        """
+        flash('There was an error viewing this budget. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.budgets'))
 
 @budgeting_bp.route('/budgets/<int:budget_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_budget(budget_id):
     """Edit a budget"""
-    if not current_user.has_permission(Role.CAN_EDIT):
-        flash('You do not have permission to edit budgets.', 'danger')
-        return redirect(url_for('budgeting.view_budget', budget_id=budget_id))
-    
-    budget = Budget.query.get_or_404(budget_id)
-    
-    if request.method == 'POST':
-        # Check the action
-        action = request.form.get('action', 'save')
+    try:
+        if not current_user.has_permission(Role.CAN_EDIT):
+            flash('You do not have permission to edit budgets.', 'danger')
+            return redirect(url_for('budgeting.view_budget', budget_id=budget_id))
         
-        if action == 'save':
-            # Update budget details
-            budget.name = request.form.get('name')
-            budget.description = request.form.get('description')
-            budget.is_active = 'is_active' in request.form
-            
-            db.session.commit()
-            flash('Budget updated successfully.', 'success')
-            return redirect(url_for('budgeting.view_budget', budget_id=budget.id))
+        logger.debug(f"Starting edit_budget for budget_id: {budget_id}")
+        budget = Budget.query.get_or_404(budget_id)
+        logger.debug(f"Found budget: {budget.name}, year: {budget.year}")
         
-        elif action == 'save_items':
-            # Process budget items
-            for key, value in request.form.items():
-                if key.startswith('budget_amount_'):
-                    # Extract account_id and period from the key
-                    parts = key.split('_')
-                    if len(parts) >= 3:
-                        account_id = int(parts[2])
-                        period = int(parts[3])
+        # Verify budget has a valid period type
+        if not budget.period_type:
+            logger.error(f"Budget {budget_id} has no period type")
+            flash('This budget has an invalid period type configuration.', 'danger')
+            return redirect(url_for('budgeting.budgets'))
+        
+        if request.method == 'POST':
+            try:
+                # Check the action
+                action = request.form.get('action', 'save')
+                logger.debug(f"POST request with action: {action}")
+                
+                if action == 'save':
+                    # Update budget details
+                    budget.name = request.form.get('name')
+                    budget.description = request.form.get('description')
+                    budget.is_active = 'is_active' in request.form
+                    
+                    try:
+                        db.session.commit()
+                        flash('Budget updated successfully.', 'success')
+                        return redirect(url_for('budgeting.view_budget', budget_id=budget.id))
+                    except Exception as db_error:
+                        logger.error(f"Database error saving budget details: {str(db_error)}")
+                        db.session.rollback()
+                        flash('There was an error saving the budget. Please try again.', 'danger')
+                
+                elif action == 'save_items':
+                    logger.debug("Processing budget items")
+                    # Process budget items
+                    items_updated = 0
+                    try:
+                        for key, value in request.form.items():
+                            if key.startswith('budget_amount_'):
+                                # Extract account_id and period from the key
+                                parts = key.split('_')
+                                if len(parts) >= 4:  # Ensure we have enough parts
+                                    try:
+                                        account_id = int(parts[2])
+                                        period = int(parts[3])
+                                        
+                                        try:
+                                            amount = Decimal(value) if value else Decimal('0.00')
+                                            # Apply reasonable limits (prevent extreme values)
+                                            if amount > Decimal('999999999.99'):
+                                                amount = Decimal('999999999.99')
+                                            if amount < Decimal('0'):
+                                                amount = Decimal('0.00')
+                                        except (InvalidOperation, ValueError, TypeError) as e:
+                                            logger.error(f"Error converting amount value: {str(e)}")
+                                            amount = Decimal('0.00')
+                                        
+                                        # Find existing item or create new one
+                                        item = BudgetItem.query.filter_by(
+                                            budget_id=budget.id,
+                                            account_id=account_id,
+                                            period=period
+                                        ).first()
+                                        
+                                        if item:
+                                            item.amount = amount
+                                        else:
+                                            item = BudgetItem(
+                                                budget_id=budget.id,
+                                                account_id=account_id,
+                                                period=period,
+                                                amount=amount
+                                            )
+                                            db.session.add(item)
+                                        
+                                        items_updated += 1
+                                    except Exception as item_error:
+                                        logger.error(f"Error processing budget item {key}: {str(item_error)}")
+                                        continue
                         
-                        try:
-                            amount = Decimal(value) if value else Decimal('0.00')
-                        except (ValueError, TypeError):
-                            amount = Decimal('0.00')
+                        logger.debug(f"Processed {items_updated} budget items")
                         
-                        # Find existing item or create new one
-                        item = BudgetItem.query.filter_by(
-                            budget_id=budget.id,
-                            account_id=account_id,
-                            period=period
-                        ).first()
+                        if items_updated > 0:
+                            # Create a new version
+                            try:
+                                version_name = request.form.get('version_name', 'Updated Version')
+                                version_notes = request.form.get('version_notes', '')
+                                
+                                # Get latest version number
+                                latest_version = BudgetVersion.query.filter_by(budget_id=budget.id).order_by(
+                                    BudgetVersion.version_number.desc()
+                                ).first()
+                                
+                                new_version_number = 1
+                                if latest_version:
+                                    new_version_number = latest_version.version_number + 1
+                                
+                                # Create new version
+                                new_version = BudgetVersion(
+                                    budget_id=budget.id,
+                                    version_number=new_version_number,
+                                    version_name=version_name,
+                                    is_active=True,
+                                    created_by_id=current_user.id,
+                                    notes=version_notes
+                                )
+                                
+                                # Set previous version as inactive
+                                if latest_version:
+                                    latest_version.is_active = False
+                                
+                                db.session.add(new_version)
+                                logger.debug(f"Created new budget version {new_version_number}")
+                            except Exception as version_error:
+                                logger.error(f"Error creating budget version: {str(version_error)}")
+                                # Continue with commit even if version creation fails
                         
-                        if item:
-                            item.amount = amount
-                        else:
-                            item = BudgetItem(
-                                budget_id=budget.id,
-                                account_id=account_id,
-                                period=period,
-                                amount=amount
-                            )
-                            db.session.add(item)
+                        db.session.commit()
+                        flash('Budget items updated successfully.', 'success')
+                        return redirect(url_for('budgeting.view_budget', budget_id=budget.id))
+                        
+                    except Exception as save_error:
+                        logger.error(f"Error saving budget items: {str(save_error)}")
+                        db.session.rollback()
+                        flash('There was an error saving the budget items. Please try again.', 'danger')
             
-            # Create a new version
-            version_name = request.form.get('version_name', 'Updated Version')
-            version_notes = request.form.get('version_notes', '')
+            except Exception as post_error:
+                logger.error(f"Error processing POST request: {str(post_error)}")
+                flash('An error occurred while processing your request.', 'danger')
+        
+        # For GET request or if POST had an error
+        try:
+            # Get period info
+            periods = generate_budget_periods(budget.period_type.name, budget.year)
+            logger.debug(f"Generated {len(periods)} periods")
             
-            # Get latest version number
-            latest_version = BudgetVersion.query.filter_by(budget_id=budget.id).order_by(
-                BudgetVersion.version_number.desc()
-            ).first()
+            # Get budget items
+            budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
+            logger.debug(f"Found {len(budget_items)} budget items")
             
-            new_version_number = 1
-            if latest_version:
-                new_version_number = latest_version.version_number + 1
+            # Create a lookup for budget amounts
+            budget_data = {}
+            for item in budget_items:
+                if item.account_id not in budget_data:
+                    budget_data[item.account_id] = {}
+                
+                # Ensure amount is a Decimal
+                try:
+                    if not isinstance(item.amount, Decimal):
+                        amount = Decimal(str(item.amount))
+                    else:
+                        amount = item.amount
+                except (InvalidOperation, TypeError):
+                    logger.error(f"Error converting budget amount to Decimal for item {item.id}")
+                    amount = Decimal('0.00')
+                
+                budget_data[item.account_id][item.period] = amount
             
-            # Create new version
-            new_version = BudgetVersion(
-                budget_id=budget.id,
-                version_number=new_version_number,
-                version_name=version_name,
-                is_active=True,
-                created_by_id=current_user.id,
-                notes=version_notes
+            # Get accounts for budget
+            accounts = []
+            if budget_items:
+                account_ids = set(item.account_id for item in budget_items)
+                accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
+            logger.debug(f"Found {len(accounts)} accounts for this budget")
+            
+            # Get available accounts
+            try:
+                revenue_type = AccountType.query.filter_by(name=AccountType.REVENUE).first()
+                expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
+                
+                revenue_accounts = []
+                expense_accounts = []
+                
+                if revenue_type:
+                    revenue_accounts = Account.query.filter_by(account_type_id=revenue_type.id, is_active=True).order_by(Account.code).all()
+                    logger.debug(f"Found {len(revenue_accounts)} revenue accounts")
+                
+                if expense_type:
+                    expense_accounts = Account.query.filter_by(account_type_id=expense_type.id, is_active=True).order_by(Account.code).all()
+                    logger.debug(f"Found {len(expense_accounts)} expense accounts")
+            except Exception as account_error:
+                logger.error(f"Error getting available accounts: {str(account_error)}")
+                revenue_accounts = []
+                expense_accounts = []
+            
+            logger.debug("Rendering budget_edit.html template")
+            return render_template(
+                'budgeting/budget_edit.html',
+                budget=budget,
+                periods=periods,
+                accounts=accounts,
+                budget_data=budget_data,
+                revenue_accounts=revenue_accounts,
+                expense_accounts=expense_accounts
             )
             
-            # Set previous version as inactive
-            if latest_version:
-                latest_version.is_active = False
+        except Exception as get_error:
+            logger.error(f"Error processing GET request: {str(get_error)}")
+            flash('There was an error loading the budget edit page. Please try again.', 'danger')
+            return redirect(url_for('budgeting.budgets'))
             
-            db.session.add(new_version)
-            db.session.commit()
-            
-            flash('Budget items updated successfully.', 'success')
-            return redirect(url_for('budgeting.view_budget', budget_id=budget.id))
-    
-    # Get period info
-    periods = generate_budget_periods(budget.period_type.name, budget.year)
-    
-    # Get budget items
-    budget_items = BudgetItem.query.filter_by(budget_id=budget_id).all()
-    
-    # Create a lookup for budget amounts
-    budget_data = {}
-    for item in budget_items:
-        if item.account_id not in budget_data:
-            budget_data[item.account_id] = {}
-        budget_data[item.account_id][item.period] = item.amount
-    
-    # Get accounts for budget
-    accounts = []
-    if budget_items:
-        account_ids = set(item.account_id for item in budget_items)
-        accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
-    
-    # Get available accounts
-    revenue_type = AccountType.query.filter_by(name=AccountType.REVENUE).first()
-    expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
-    
-    revenue_accounts = []
-    expense_accounts = []
-    
-    if revenue_type:
-        revenue_accounts = Account.query.filter_by(account_type_id=revenue_type.id, is_active=True).order_by(Account.code).all()
-    
-    if expense_type:
-        expense_accounts = Account.query.filter_by(account_type_id=expense_type.id, is_active=True).order_by(Account.code).all()
-    
-    return render_template(
-        'budgeting/budget_edit.html',
-        budget=budget,
-        periods=periods,
-        accounts=accounts,
-        budget_data=budget_data,
-        revenue_accounts=revenue_accounts,
-        expense_accounts=expense_accounts
-    )
+    except Exception as e:
+        logger.error(f"Error in edit_budget: {str(e)}")
+        flash('There was an error accessing this budget. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.budgets'))
 
 @budgeting_bp.route('/budgets/<int:budget_id>/add_account', methods=['POST'])
 @login_required
 def add_budget_account(budget_id):
     """Add an account to a budget"""
-    if not current_user.has_permission(Role.CAN_EDIT):
-        flash('You do not have permission to edit budgets.', 'danger')
-        return redirect(url_for('budgeting.view_budget', budget_id=budget_id))
-    
-    budget = Budget.query.get_or_404(budget_id)
-    
-    # Get the account ID from the form
-    account_id = request.form.get('account_id', type=int)
-    if not account_id:
-        flash('Please select an account.', 'danger')
-        return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
-    
-    # Check if account exists
-    account = Account.query.get(account_id)
-    if not account:
-        flash('Selected account does not exist.', 'danger')
-        return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
-    
-    # Check if account is already in the budget
-    existing_item = BudgetItem.query.filter_by(budget_id=budget_id, account_id=account_id).first()
-    if existing_item:
-        flash(f'Account {account.name} is already in this budget.', 'warning')
-        return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
-    
-    # Get period info
-    periods = generate_budget_periods(budget.period_type.name, budget.year)
-    
-    # Add account to budget with zero amounts
-    items = []
-    for period_info in periods:
-        item = BudgetItem(
-            budget_id=budget_id,
-            account_id=account_id,
-            period=period_info['period'],
-            amount=0
-        )
-        items.append(item)
-    
-    db.session.add_all(items)
-    db.session.commit()
-    
-    flash(f'Account {account.name} added to budget.', 'success')
-    return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+    try:
+        logger.debug(f"Starting add_budget_account for budget_id: {budget_id}")
+        
+        if not current_user.has_permission(Role.CAN_EDIT):
+            flash('You do not have permission to edit budgets.', 'danger')
+            return redirect(url_for('budgeting.view_budget', budget_id=budget_id))
+        
+        budget = Budget.query.get_or_404(budget_id)
+        logger.debug(f"Found budget: {budget.name}")
+        
+        # Verify budget has a valid period type
+        if not budget.period_type:
+            logger.error(f"Budget {budget_id} has no period type")
+            flash('This budget has an invalid period type configuration.', 'danger')
+            return redirect(url_for('budgeting.budgets'))
+        
+        # Get the account ID from the form
+        try:
+            account_id = request.form.get('account_id', type=int)
+            logger.debug(f"Received account_id: {account_id}")
+            
+            if not account_id:
+                flash('Please select an account.', 'danger')
+                return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        except Exception as form_error:
+            logger.error(f"Error getting account_id from form: {str(form_error)}")
+            flash('Invalid account selection.', 'danger')
+            return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        
+        # Check if account exists
+        try:
+            account = Account.query.get(account_id)
+            if not account:
+                logger.error(f"Account {account_id} not found")
+                flash('Selected account does not exist.', 'danger')
+                return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+            logger.debug(f"Found account: {account.name}")
+        except Exception as account_error:
+            logger.error(f"Error getting account: {str(account_error)}")
+            flash('There was an error retrieving the account information.', 'danger')
+            return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        
+        # Check if account is already in the budget
+        try:
+            existing_item = BudgetItem.query.filter_by(budget_id=budget_id, account_id=account_id).first()
+            if existing_item:
+                logger.debug(f"Account {account.name} already in budget")
+                flash(f'Account {account.name} is already in this budget.', 'warning')
+                return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        except Exception as existing_error:
+            logger.error(f"Error checking for existing budget item: {str(existing_error)}")
+            # Continue with the operation, as this is not critical
+        
+        # Get period info
+        try:
+            periods = generate_budget_periods(budget.period_type.name, budget.year)
+            logger.debug(f"Generated {len(periods)} periods")
+            
+            if not periods:
+                logger.error("No periods generated")
+                flash('Unable to add account due to invalid budget period configuration.', 'danger')
+                return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        except Exception as period_error:
+            logger.error(f"Error generating budget periods: {str(period_error)}")
+            flash('There was an error with the budget period configuration.', 'danger')
+            return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        
+        # Add account to budget with zero amounts
+        try:
+            items = []
+            for period_info in periods:
+                item = BudgetItem(
+                    budget_id=budget_id,
+                    account_id=account_id,
+                    period=period_info['period'],
+                    amount=Decimal('0.00')
+                )
+                items.append(item)
+            
+            logger.debug(f"Adding {len(items)} budget items")
+            db.session.add_all(items)
+            db.session.commit()
+            
+            flash(f'Account {account.name} added to budget.', 'success')
+            return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+        except Exception as db_error:
+            logger.error(f"Database error adding account to budget: {str(db_error)}")
+            db.session.rollback()
+            flash('There was an error adding the account to the budget. Please try again.', 'danger')
+            return redirect(url_for('budgeting.edit_budget', budget_id=budget_id))
+            
+    except Exception as e:
+        logger.error(f"Error in add_budget_account: {str(e)}")
+        flash('There was an error processing your request. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.budgets'))
 
 @budgeting_bp.route('/budgets/<int:budget_id>/remove_account/<int:account_id>', methods=['POST'])
 @login_required
