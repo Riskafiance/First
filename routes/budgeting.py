@@ -14,10 +14,66 @@ from sqlalchemy import func, text, case
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import json
 import logging
+from app import db
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+# Copy needed functions from utils.py to avoid import issues
+def get_account_balance(account_id, start_date=None, end_date=None):
+    """Get the balance of an account for a specific date range"""
+    from models import Account, JournalItem, JournalEntry, AccountType
+    from sqlalchemy import func
+    from decimal import Decimal
+    
+    logger.debug(f"Local get_account_balance for account {account_id} from {start_date} to {end_date}")
+    
+    # Get the account
+    account = Account.query.get(account_id)
+    if not account:
+        logger.debug(f"Account {account_id} not found")
+        return Decimal('0.00')
+    
+    # Base query
+    query = db.session.query(
+        func.sum(JournalItem.debit_amount).label('total_debit'),
+        func.sum(JournalItem.credit_amount).label('total_credit')
+    ).join(
+        JournalEntry, JournalItem.journal_entry_id == JournalEntry.id
+    ).filter(
+        JournalItem.account_id == account_id,
+        JournalEntry.is_posted == True
+    )
+    
+    # Apply date filters
+    if start_date:
+        query = query.filter(JournalEntry.entry_date >= start_date)
+    if end_date:
+        query = query.filter(JournalEntry.entry_date <= end_date)
+    
+    # Execute query
+    result = query.first()
+    
+    # Calculate balance based on account type
+    total_debit = result.total_debit or Decimal('0.00')
+    total_credit = result.total_credit or Decimal('0.00')
+    
+    # For asset and expense accounts, debit increases the balance
+    if account.account_type.name in [AccountType.ASSET, AccountType.EXPENSE]:
+        balance = total_debit - total_credit
+    # For liability, equity, and revenue accounts, credit increases the balance
+    else:
+        balance = total_credit - total_debit
+    
+    logger.debug(f"Account balance for {account.name}: {balance}")
+    return balance
+
+def month_name(month_number):
+    """Get the name of a month from its number (1-12)"""
+    if month_number < 1 or month_number > 12:
+        return "Invalid Month"
+    return datetime(2000, month_number, 1).strftime('%B')
 
 budgeting_bp = Blueprint('budgeting', __name__)
 
@@ -41,7 +97,7 @@ def generate_budget_periods(period_type, year):
         for month in range(1, 13):
             periods.append({
                 'period': month,
-                'name': utils.month_name(month),
+                'name': month_name(month),
                 'start_date': date(year, month, 1),
                 'end_date': date(year, month, calendar.monthrange(year, month)[1])
             })
@@ -138,7 +194,7 @@ def get_actual_vs_budget(budget_id, start_date, end_date):
             # Get actual amounts from journal entries
             try:
                 logger.debug(f"Getting balance for account {account.id} from {period_start} to {period_end}")
-                actual_amount = utils.get_account_balance(
+                actual_amount = get_account_balance(
                     account.id, 
                     period_start, 
                     period_end
