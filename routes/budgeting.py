@@ -1028,143 +1028,323 @@ def forecasts():
 @login_required
 def create_forecast():
     """Create a new forecast"""
-    if not current_user.has_permission(Role.CAN_CREATE):
-        flash('You do not have permission to create forecasts.', 'danger')
+    try:
+        logger.debug("Starting create_forecast")
+        
+        if not current_user.has_permission(Role.CAN_CREATE):
+            flash('You do not have permission to create forecasts.', 'danger')
+            return redirect(url_for('budgeting.forecasts'))
+        
+        if request.method == 'POST':
+            try:
+                logger.debug("Processing POST request for create_forecast")
+                # Get form data
+                name = request.form.get('name')
+                description = request.form.get('description')
+                start_date_str = request.form.get('start_date')
+                end_date_str = request.form.get('end_date')
+                period_type_id = request.form.get('period_type_id', type=int)
+                
+                logger.debug(f"Form data - name: {name}, start_date: {start_date_str}, end_date: {end_date_str}, period_type_id: {period_type_id}")
+                
+                # Validate
+                if not name or not start_date_str or not end_date_str or not period_type_id:
+                    flash('Please fill in all required fields.', 'danger')
+                    return redirect(url_for('budgeting.create_forecast'))
+                
+                # Verify period type exists
+                period_type = BudgetPeriodType.query.get(period_type_id)
+                if not period_type:
+                    logger.error(f"Period type {period_type_id} not found")
+                    flash('Invalid period type selected.', 'danger')
+                    return redirect(url_for('budgeting.create_forecast'))
+                
+                # Parse dates
+                try:
+                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                    
+                    # Validate date range
+                    if end_date < start_date:
+                        flash('End date must be after start date.', 'danger')
+                        return redirect(url_for('budgeting.create_forecast'))
+                    
+                except ValueError as date_error:
+                    logger.error(f"Date parsing error: {str(date_error)}")
+                    flash('Invalid date format. Please use YYYY-MM-DD format.', 'danger')
+                    return redirect(url_for('budgeting.create_forecast'))
+                
+                # Create forecast
+                try:
+                    forecast = Forecast(
+                        name=name,
+                        description=description,
+                        start_date=start_date,
+                        end_date=end_date,
+                        period_type_id=period_type_id,
+                        is_active=True,
+                        created_by_id=current_user.id
+                    )
+                    
+                    db.session.add(forecast)
+                    db.session.commit()
+                    logger.debug(f"Created forecast with ID {forecast.id}")
+                    
+                    flash('Forecast created successfully.', 'success')
+                    return redirect(url_for('budgeting.view_forecast', forecast_id=forecast.id))
+                except Exception as db_error:
+                    logger.error(f"Database error creating forecast: {str(db_error)}")
+                    db.session.rollback()
+                    flash('There was an error creating the forecast. Please try again.', 'danger')
+                    return redirect(url_for('budgeting.create_forecast'))
+            
+            except Exception as post_error:
+                logger.error(f"Error processing POST request: {str(post_error)}")
+                flash('An error occurred while processing your request.', 'danger')
+                return redirect(url_for('budgeting.forecasts'))
+        
+        # GET request - render form
+        try:
+            # Get period types
+            period_types = BudgetPeriodType.query.all()
+            logger.debug(f"Found {len(period_types)} period types")
+            
+            if not period_types:
+                logger.debug("No period types found, creating defaults")
+                # Create default period types if they don't exist
+                try:
+                    monthly = BudgetPeriodType(name=BudgetPeriodType.MONTHLY)
+                    quarterly = BudgetPeriodType(name=BudgetPeriodType.QUARTERLY)
+                    annual = BudgetPeriodType(name=BudgetPeriodType.ANNUAL)
+                    custom = BudgetPeriodType(name=BudgetPeriodType.CUSTOM)
+                    
+                    db.session.add_all([monthly, quarterly, annual, custom])
+                    db.session.commit()
+                    
+                    period_types = BudgetPeriodType.query.all()
+                    logger.debug("Created default period types")
+                except Exception as type_error:
+                    logger.error(f"Error creating default period types: {str(type_error)}")
+                    db.session.rollback()
+            
+            # Default dates
+            today = datetime.now().date()
+            
+            logger.debug("Rendering forecast_form.html template")
+            return render_template(
+                'budgeting/forecast_form.html',
+                period_types=period_types,
+                today=today
+            )
+            
+        except Exception as get_error:
+            logger.error(f"Error processing GET request: {str(get_error)}")
+            flash('There was an error loading the forecast creation page.', 'danger')
+            return redirect(url_for('budgeting.forecasts'))
+            
+    except Exception as e:
+        logger.error(f"Error in create_forecast: {str(e)}")
+        flash('There was an error accessing the forecast creation page.', 'danger')
         return redirect(url_for('budgeting.forecasts'))
-    
-    if request.method == 'POST':
-        # Get form data
-        name = request.form.get('name')
-        description = request.form.get('description')
-        start_date = request.form.get('start_date')
-        end_date = request.form.get('end_date')
-        period_type_id = request.form.get('period_type_id', type=int)
-        
-        # Validate
-        if not name or not start_date or not end_date or not period_type_id:
-            flash('Please fill in all required fields.', 'danger')
-            return redirect(url_for('budgeting.create_forecast'))
-        
-        # Parse dates
-        start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-        end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
-        # Create forecast
-        forecast = Forecast(
-            name=name,
-            description=description,
-            start_date=start_date,
-            end_date=end_date,
-            period_type_id=period_type_id,
-            is_active=True,
-            created_by_id=current_user.id
-        )
-        
-        db.session.add(forecast)
-        db.session.commit()
-        
-        flash('Forecast created successfully.', 'success')
-        return redirect(url_for('budgeting.view_forecast', forecast_id=forecast.id))
-    
-    # Get period types
-    period_types = BudgetPeriodType.query.all()
-    if not period_types:
-        # Create default period types if they don't exist
-        monthly = BudgetPeriodType(name=BudgetPeriodType.MONTHLY)
-        quarterly = BudgetPeriodType(name=BudgetPeriodType.QUARTERLY)
-        annual = BudgetPeriodType(name=BudgetPeriodType.ANNUAL)
-        custom = BudgetPeriodType(name=BudgetPeriodType.CUSTOM)
-        
-        db.session.add_all([monthly, quarterly, annual, custom])
-        db.session.commit()
-        
-        period_types = BudgetPeriodType.query.all()
-    
-    # Default dates
-    today = datetime.now().date()
-    
-    return render_template(
-        'budgeting/forecast_form.html',
-        period_types=period_types,
-        today=today
-    )
 
 @budgeting_bp.route('/forecasts/<int:forecast_id>')
 @login_required
 def view_forecast(forecast_id):
     """View a forecast"""
-    forecast = Forecast.query.get_or_404(forecast_id)
-    
-    # Get forecast items
-    items = ForecastItem.query.filter_by(forecast_id=forecast_id).all()
-    
-    # Get all accounts with forecast items
-    account_ids = set(item.account_id for item in items)
-    accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
-    
-    # Create a lookup for forecast amounts
-    forecast_data = {}
-    for account in accounts:
-        forecast_data[account.id] = {
-            'account': account,
-            'periods': {}
-        }
-    
-    for item in items:
-        if item.account_id in forecast_data:
-            forecast_data[item.account_id]['periods'][item.period] = {
-                'amount': item.amount,
-                'growth_factor': item.growth_factor
-            }
-    
-    return render_template(
-        'budgeting/forecast_view.html',
-        forecast=forecast,
-        forecast_data=forecast_data,
-        accounts=accounts
-    )
+    try:
+        logger.debug(f"Starting view_forecast for forecast_id: {forecast_id}")
+        forecast = Forecast.query.get_or_404(forecast_id)
+        logger.debug(f"Found forecast: {forecast.name}")
+        
+        # Verify forecast has a valid period type
+        if not forecast.period_type:
+            logger.error(f"Forecast {forecast_id} has no period type")
+            flash('This forecast has an invalid period type configuration.', 'danger')
+            return redirect(url_for('budgeting.forecasts'))
+        
+        # Get forecast items
+        try:
+            items = ForecastItem.query.filter_by(forecast_id=forecast_id).all()
+            logger.debug(f"Found {len(items)} forecast items")
+        except Exception as db_error:
+            logger.error(f"Database error getting forecast items: {str(db_error)}")
+            items = []
+        
+        # Get all accounts with forecast items
+        account_ids = set()
+        try:
+            account_ids = set(item.account_id for item in items)
+            logger.debug(f"Account IDs: {account_ids}")
+        except Exception as e:
+            logger.error(f"Error extracting account IDs: {str(e)}")
+        
+        accounts = []
+        if account_ids:
+            try:
+                accounts = Account.query.filter(Account.id.in_(account_ids)).order_by(Account.code).all()
+                logger.debug(f"Found {len(accounts)} accounts")
+            except Exception as account_error:
+                logger.error(f"Error getting accounts: {str(account_error)}")
+        
+        # Create a lookup for forecast amounts
+        forecast_data = {}
+        try:
+            for account in accounts:
+                forecast_data[account.id] = {
+                    'account': account,
+                    'periods': {}
+                }
+            
+            for item in items:
+                if item.account_id in forecast_data:
+                    # Ensure values are Decimal
+                    try:
+                        amount = item.amount
+                        if not isinstance(amount, Decimal):
+                            amount = Decimal(str(amount))
+                    except (InvalidOperation, TypeError, ValueError):
+                        logger.error(f"Error converting amount to Decimal for item {item.id}")
+                        amount = Decimal('0.00')
+                    
+                    try:
+                        growth_factor = item.growth_factor or Decimal('0.00')
+                        if not isinstance(growth_factor, Decimal):
+                            growth_factor = Decimal(str(growth_factor))
+                    except (InvalidOperation, TypeError, ValueError):
+                        logger.error(f"Error converting growth_factor to Decimal for item {item.id}")
+                        growth_factor = Decimal('0.00')
+                    
+                    forecast_data[item.account_id]['periods'][item.period] = {
+                        'amount': amount,
+                        'growth_factor': growth_factor
+                    }
+            
+            logger.debug(f"Created forecast_data with {len(forecast_data)} entries")
+        except Exception as data_error:
+            logger.error(f"Error creating forecast data: {str(data_error)}")
+        
+        logger.debug("Rendering forecast_view.html template with data")
+        return render_template(
+            'budgeting/forecast_view.html',
+            forecast=forecast,
+            forecast_data=forecast_data,
+            accounts=accounts
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in view_forecast: {str(e)}")
+        flash('There was an error viewing this forecast. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.forecasts'))
 
 @budgeting_bp.route('/forecasts/<int:forecast_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_forecast(forecast_id):
     """Edit a forecast"""
-    if not current_user.has_permission(Role.CAN_EDIT):
-        flash('You do not have permission to edit forecasts.', 'danger')
-        return redirect(url_for('budgeting.view_forecast', forecast_id=forecast_id))
-    
-    forecast = Forecast.query.get_or_404(forecast_id)
-    
-    if request.method == 'POST':
-        # Update forecast details
-        forecast.name = request.form.get('name')
-        forecast.description = request.form.get('description')
-        forecast.is_active = 'is_active' in request.form
+    try:
+        logger.debug(f"Starting edit_forecast for forecast_id: {forecast_id}")
         
-        db.session.commit()
-        flash('Forecast updated successfully.', 'success')
-        return redirect(url_for('budgeting.view_forecast', forecast_id=forecast.id))
-    
-    return render_template(
-        'budgeting/forecast_edit.html',
-        forecast=forecast
-    )
+        if not current_user.has_permission(Role.CAN_EDIT):
+            flash('You do not have permission to edit forecasts.', 'danger')
+            return redirect(url_for('budgeting.view_forecast', forecast_id=forecast_id))
+        
+        try:
+            forecast = Forecast.query.get_or_404(forecast_id)
+            logger.debug(f"Found forecast: {forecast.name}")
+            
+            # Verify forecast has a valid period type
+            if not forecast.period_type:
+                logger.error(f"Forecast {forecast_id} has no period type")
+                flash('This forecast has an invalid period type configuration.', 'danger')
+                return redirect(url_for('budgeting.forecasts'))
+        except Exception as fetch_error:
+            logger.error(f"Error fetching forecast: {str(fetch_error)}")
+            flash('Forecast not found or could not be accessed.', 'danger')
+            return redirect(url_for('budgeting.forecasts'))
+        
+        if request.method == 'POST':
+            try:
+                logger.debug("Processing POST request for edit_forecast")
+                
+                # Get form data
+                name = request.form.get('name')
+                description = request.form.get('description')
+                is_active = 'is_active' in request.form
+                
+                # Validate
+                if not name:
+                    flash('Forecast name is required.', 'danger')
+                    return redirect(url_for('budgeting.edit_forecast', forecast_id=forecast_id))
+                
+                # Update forecast details
+                try:
+                    forecast.name = name
+                    forecast.description = description
+                    forecast.is_active = is_active
+                    
+                    db.session.commit()
+                    logger.debug(f"Updated forecast {forecast_id}")
+                    
+                    flash('Forecast updated successfully.', 'success')
+                    return redirect(url_for('budgeting.view_forecast', forecast_id=forecast.id))
+                except Exception as db_error:
+                    logger.error(f"Database error updating forecast: {str(db_error)}")
+                    db.session.rollback()
+                    flash('There was an error updating the forecast. Please try again.', 'danger')
+            
+            except Exception as post_error:
+                logger.error(f"Error processing POST request: {str(post_error)}")
+                flash('An error occurred while processing your request.', 'danger')
+        
+        # For GET request or if POST had an error
+        logger.debug("Rendering forecast_edit.html template")
+        return render_template(
+            'budgeting/forecast_edit.html',
+            forecast=forecast
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in edit_forecast: {str(e)}")
+        flash('There was an error accessing this forecast. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.forecasts'))
 
 @budgeting_bp.route('/forecasts/<int:forecast_id>/delete', methods=['POST'])
 @login_required
 def delete_forecast(forecast_id):
     """Delete a forecast"""
-    if not current_user.has_permission(Role.CAN_DELETE):
-        flash('You do not have permission to delete forecasts.', 'danger')
-        return redirect(url_for('budgeting.view_forecast', forecast_id=forecast_id))
-    
-    forecast = Forecast.query.get_or_404(forecast_id)
-    
-    # Delete all related items
-    ForecastItem.query.filter_by(forecast_id=forecast_id).delete()
-    
-    # Delete forecast
-    db.session.delete(forecast)
-    db.session.commit()
-    
-    flash('Forecast deleted successfully.', 'success')
-    return redirect(url_for('budgeting.forecasts'))
+    try:
+        logger.debug(f"Starting delete_forecast for forecast_id: {forecast_id}")
+        
+        if not current_user.has_permission(Role.CAN_DELETE):
+            flash('You do not have permission to delete forecasts.', 'danger')
+            return redirect(url_for('budgeting.view_forecast', forecast_id=forecast_id))
+        
+        try:
+            forecast = Forecast.query.get_or_404(forecast_id)
+            logger.debug(f"Found forecast: {forecast.name}")
+        except Exception as fetch_error:
+            logger.error(f"Error fetching forecast: {str(fetch_error)}")
+            flash('Forecast not found or could not be accessed.', 'danger')
+            return redirect(url_for('budgeting.forecasts'))
+        
+        try:
+            # Delete all related items
+            items_deleted = ForecastItem.query.filter_by(forecast_id=forecast_id).delete()
+            logger.debug(f"Deleted {items_deleted} forecast items")
+            
+            # Delete forecast
+            db.session.delete(forecast)
+            db.session.commit()
+            logger.debug(f"Deleted forecast {forecast_id}")
+            
+            flash('Forecast deleted successfully.', 'success')
+        except Exception as db_error:
+            logger.error(f"Database error deleting forecast: {str(db_error)}")
+            db.session.rollback()
+            flash('There was an error deleting the forecast. Please try again.', 'danger')
+        
+        return redirect(url_for('budgeting.forecasts'))
+        
+    except Exception as e:
+        logger.error(f"Error in delete_forecast: {str(e)}")
+        flash('There was an error processing your request. Please try again or contact support.', 'danger')
+        return redirect(url_for('budgeting.forecasts'))
