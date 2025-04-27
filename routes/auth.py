@@ -90,19 +90,15 @@ def register():
         )
         user.set_password(password)
         
-        # Assign standard user role (Default to Admin for now as per existing system)
-        # But we'll ensure the dashboard displays blank for new users
-        user_role = Role.query.filter_by(name='Admin').first()
-        if user_role:
-            user.role = user_role
-        
-        # Store the registration date to identify new users
-        user.created_at = datetime.utcnow()
+        # Assign Admin role with full permissions
+        admin_role = Role.query.filter_by(name='Admin').first()
+        if admin_role:
+            user.role = admin_role
         
         db.session.add(user)
         db.session.commit()
         
-        flash('Registration successful! You can now log in to your empty dashboard.', 'success')
+        flash('Registration successful! You can now log in.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('register.html')
