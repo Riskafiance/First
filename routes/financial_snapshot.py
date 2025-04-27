@@ -4,7 +4,7 @@ Financial Snapshot Dashboard routes
 import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Role
+from models import Role, Account, AccountType, JournalEntry, JournalItem, Invoice, Expense, Entity, FixedAsset, Product
 from app import db
 from core_utils import (
     get_financial_summary, 
@@ -12,12 +12,6 @@ from core_utils import (
     get_account_balance,
     get_inventory_value,
     get_low_stock_products
-)
-from utils.user_data import (
-    get_model_adapter,
-    get_invoices,
-    get_expenses,
-    get_user_data
 )
 from sqlalchemy import func, desc, text, extract
 from sqlalchemy.sql import label
@@ -41,135 +35,84 @@ def financial_snapshot():
         # Get trends for last 6 months
         trends = get_monthly_trends(months=6)
         
-        # Get user data
-        username = current_user.username
-        user_data = get_user_data(username)
+        # Calculate key financial ratios
+        total_assets = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+            AccountType.classification == 'Asset'
+        ).scalar() or 0
         
-        # Get account balances from user data
-        total_assets = 0
-        total_liabilities = 0
-        cash = 0
+        total_liabilities = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+            AccountType.classification == 'Liability'
+        ).scalar() or 0
         
-        if 'chart_of_accounts' in user_data:
-            chart = user_data.get('chart_of_accounts', {})
-            # Calculate totals for asset accounts
-            for account in chart.get('asset', []):
-                total_assets += account.get('balance', 0)
-                if account.get('name', '').lower() == 'cash':
-                    cash = account.get('balance', 0)
-            
-            # Calculate totals for liability accounts
-            for account in chart.get('liability', []):
-                total_liabilities += account.get('balance', 0)
+        # Get total accounts receivable
+        accounts_receivable = db.session.query(func.sum(Invoice.total_amount - Invoice.paid_amount)).filter(
+            Invoice.paid_amount < Invoice.total_amount
+        ).scalar() or 0
         
-        # Get total accounts receivable from invoices
-        accounts_receivable = 0
-        for invoice in user_data.get('invoices', []):
-            total = invoice.get('total_amount', 0)
-            paid = invoice.get('paid_amount', 0)
-            if paid < total:
-                accounts_receivable += (total - paid)
-        
-        # Get total accounts payable from expenses
-        accounts_payable = 0
-        for expense in user_data.get('expenses', []):
-            total = expense.get('total_amount', 0)
-            paid = expense.get('paid_amount', 0)
-            if paid < total:
-                accounts_payable += (total - paid)
+        # Get total accounts payable
+        accounts_payable = db.session.query(func.sum(Expense.total_amount - Expense.paid_amount)).filter(
+            Expense.paid_amount < Expense.total_amount
+        ).scalar() or 0
         
         # Calculate recent revenue and expenses (last 30 days)
         thirty_days_ago = datetime.date.today() - datetime.timedelta(days=30)
-        thirty_days_ago_str = thirty_days_ago.isoformat()
         
-        recent_revenue = 0
-        recent_expenses = 0
+        recent_revenue = db.session.query(func.sum(JournalItem.amount)).join(JournalEntry).join(Account).join(AccountType).filter(
+            JournalEntry.entry_date >= thirty_days_ago,
+            JournalEntry.is_posted == True,
+            AccountType.classification == 'Revenue',
+            JournalItem.amount > 0
+        ).scalar() or 0
         
-        for entry in user_data.get('journal_entries', []):
-            entry_date = entry.get('entry_date', '')
-            if entry_date >= thirty_days_ago_str and entry.get('is_posted', False):
-                for item in entry.get('items', []):
-                    if item.get('account_type') == 'revenue':
-                        recent_revenue += item.get('credit_amount', 0) - item.get('debit_amount', 0)
-                    elif item.get('account_type') == 'expense':
-                        recent_expenses += item.get('debit_amount', 0) - item.get('credit_amount', 0)
+        recent_expenses = db.session.query(func.sum(JournalItem.amount)).join(JournalEntry).join(Account).join(AccountType).filter(
+            JournalEntry.entry_date >= thirty_days_ago,
+            JournalEntry.is_posted == True,
+            AccountType.classification == 'Expense',
+            JournalItem.amount > 0
+        ).scalar() or 0
         
         # Get top 5 customers by revenue
-        customers = user_data.get('customers', [])
-        customer_revenue = {}
-        
-        for invoice in user_data.get('invoices', []):
-            customer_id = invoice.get('entity_id')
-            if customer_id:
-                if customer_id not in customer_revenue:
-                    customer_revenue[customer_id] = 0
-                customer_revenue[customer_id] += invoice.get('total_amount', 0)
-        
-        top_customers = []
-        for customer in customers:
-            if customer.get('id') in customer_revenue:
-                top_customers.append({
-                    'id': customer.get('id'),
-                    'name': customer.get('name'),
-                    'total_revenue': customer_revenue[customer.get('id')]
-                })
-        
-        # Sort and limit to top 5
-        top_customers = sorted(top_customers, key=lambda x: x.get('total_revenue', 0), reverse=True)[:5]
+        top_customers = db.session.query(
+            Entity.id,
+            Entity.name,
+            label('total_revenue', func.sum(Invoice.total_amount))
+        ).join(Invoice, Invoice.entity_id == Entity.id).filter(
+            Entity.entity_type_id == 1  # Customer type ID
+        ).group_by(Entity.id, Entity.name).order_by(
+            desc('total_revenue')
+        ).limit(5).all()
         
         # Get recent invoices (last 10)
-        all_invoices = get_invoices(username)
-        sorted_invoices = sorted(all_invoices, key=lambda x: x.get('issue_date', ''), reverse=True)
-        recent_invoices = sorted_invoices[:10] if sorted_invoices else []
+        recent_invoices = db.session.query(Invoice).order_by(
+            desc(Invoice.issue_date)
+        ).limit(10).all()
         
         # Get recent expenses (last 10)
-        all_expenses = get_expenses(username)
-        sorted_expenses = sorted(all_expenses, key=lambda x: x.get('expense_date', ''), reverse=True)
-        recent_expenses_list = sorted_expenses[:10] if sorted_expenses else []
+        recent_expenses_list = db.session.query(Expense).order_by(
+            desc(Expense.expense_date)
+        ).limit(10).all()
         
         # Get inventory value and low stock alerts
-        inventory_value = 0
-        low_stock_items = []
-        
-        # Calculate from products in user data
-        for product in user_data.get('products', []):
-            current_stock = product.get('current_stock', 0)
-            cost_price = product.get('cost_price', 0)
-            if current_stock and cost_price:
-                inventory_value += current_stock * cost_price
-            
-            # Check for low stock items
-            reorder_level = product.get('reorder_level', 0)
-            if current_stock <= reorder_level:
-                low_stock_items.append({
-                    'id': product.get('id'),
-                    'sku': product.get('sku'),
-                    'name': product.get('name'),
-                    'current_stock': current_stock,
-                    'reorder_level': reorder_level
-                })
+        inventory_value = get_inventory_value()
+        low_stock_items = get_low_stock_products()
         
         # Calculate fixed assets total value
-        fixed_assets_value = 0
-        for asset in user_data.get('fixed_assets', []):
-            fixed_assets_value += asset.get('current_value', 0)
+        fixed_assets_value = db.session.query(func.sum(FixedAsset.current_value)).scalar() or 0
         
-        # We already have cash from above
-        # Determine current assets (assets that are marked as current)
-        current_assets = 0
-        current_liabilities = 0
+        # Calculate liquidity ratios
+        cash = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+            AccountType.name == 'Cash'
+        ).scalar() or 0
         
-        if 'chart_of_accounts' in user_data:
-            chart = user_data.get('chart_of_accounts', {})
-            # Calculate current asset accounts
-            for account in chart.get('asset', []):
-                if account.get('is_current', False):
-                    current_assets += account.get('balance', 0)
-            
-            # Calculate current liability accounts
-            for account in chart.get('liability', []):
-                if account.get('is_current', False):
-                    current_liabilities += account.get('balance', 0)
+        current_assets = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+            AccountType.classification == 'Asset',
+            AccountType.is_current == True
+        ).scalar() or 0
+        
+        current_liabilities = db.session.query(func.sum(Account.balance)).join(AccountType).filter(
+            AccountType.classification == 'Liability',
+            AccountType.is_current == True
+        ).scalar() or 0
         
         # Calculate ratios
         if current_liabilities > 0:
@@ -266,47 +209,29 @@ def get_financial_data():
             return jsonify({'data': chart_data})
         
         elif chart_type == 'assets':
-            # Get user data
-            username = current_user.username
-            user_data = get_user_data(username)
+            # Get asset types distribution
+            asset_types = db.session.query(
+                AccountType.name,
+                func.sum(Account.balance).label('total')
+            ).join(Account).filter(
+                AccountType.classification == 'Asset',
+                Account.balance > 0
+            ).group_by(AccountType.name).all()
             
-            # Get asset types distribution from user data
-            asset_types = {}
-            if 'chart_of_accounts' in user_data:
-                chart = user_data.get('chart_of_accounts', {})
-                for account in chart.get('asset', []):
-                    account_type = account.get('account_type_name', 'Other')
-                    balance = account.get('balance', 0)
-                    
-                    if balance > 0:  # Only include positive balances
-                        if account_type not in asset_types:
-                            asset_types[account_type] = 0
-                        asset_types[account_type] += balance
-            
-            # Convert to chart data format
-            chart_data = [{'name': name, 'value': float(value)} for name, value in asset_types.items()]
+            chart_data = [{'name': t.name, 'value': float(t.total)} for t in asset_types]
             return jsonify({'data': chart_data})
         
         elif chart_type == 'liabilities':
-            # Get user data
-            username = current_user.username
-            user_data = get_user_data(username)
+            # Get liability types distribution
+            liability_types = db.session.query(
+                AccountType.name,
+                func.sum(Account.balance).label('total')
+            ).join(Account).filter(
+                AccountType.classification == 'Liability',
+                Account.balance > 0
+            ).group_by(AccountType.name).all()
             
-            # Get liability types distribution from user data
-            liability_types = {}
-            if 'chart_of_accounts' in user_data:
-                chart = user_data.get('chart_of_accounts', {})
-                for account in chart.get('liability', []):
-                    account_type = account.get('account_type_name', 'Other')
-                    balance = account.get('balance', 0)
-                    
-                    if balance > 0:  # Only include positive balances
-                        if account_type not in liability_types:
-                            liability_types[account_type] = 0
-                        liability_types[account_type] += balance
-            
-            # Convert to chart data format
-            chart_data = [{'name': name, 'value': float(value)} for name, value in liability_types.items()]
+            chart_data = [{'name': t.name, 'value': float(t.total)} for t in liability_types]
             return jsonify({'data': chart_data})
         
         return jsonify({'error': 'Invalid chart type'})
