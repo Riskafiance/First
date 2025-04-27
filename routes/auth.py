@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, login_manager
 from models import User, Role
 from datetime import datetime
 from functools import wraps
+from utils.user_setup import initialize_new_user_account
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -81,25 +82,40 @@ def register():
             flash(f'Email {email} already exists', 'error')
             return render_template('register.html')
         
-        # Create new user
-        user = User(
-            username=username,
-            email=email,
-            first_name=first_name,
-            last_name=last_name
-        )
-        user.set_password(password)
-        
-        # Assign Admin role with full permissions
-        admin_role = Role.query.filter_by(name='Admin').first()
-        if admin_role:
-            user.role = admin_role
-        
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('Registration successful! You can now log in.', 'success')
-        return redirect(url_for('auth.login'))
+        try:
+            # Create new user
+            user = User(
+                username=username,
+                email=email,
+                first_name=first_name,
+                last_name=last_name
+            )
+            user.set_password(password)
+            
+            # Assign Admin role with full permissions
+            admin_role = Role.query.filter_by(name='Admin').first()
+            if not admin_role:
+                # Create Admin role if it doesn't exist
+                Role.insert_roles()
+                admin_role = Role.query.filter_by(name='Admin').first()
+                
+            if admin_role:
+                user.role = admin_role
+            
+            db.session.add(user)
+            db.session.commit()
+            
+            # Initialize the user's account with empty structure
+            current_app.logger.info(f"Initializing new account for user: {username}")
+            initialize_new_user_account(user)
+            
+            flash('Registration successful! You can now log in to your new accounting system.', 'success')
+            return redirect(url_for('auth.login'))
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Error during registration: {str(e)}")
+            flash(f'An error occurred during registration. Please try again.', 'error')
+            return render_template('register.html')
     
     return render_template('register.html')
 
@@ -145,26 +161,36 @@ def create_user():
         flash(f'Email {email} already exists', 'error')
         return redirect(url_for('auth.user_management'))
     
-    # Create new user
-    user = User(
-        username=username,
-        email=email,
-        first_name=first_name,
-        last_name=last_name
-    )
-    user.set_password(password)
-    
-    # Set role if provided
-    if role_id and role_id.isdigit():
-        role = Role.query.get(int(role_id))
-        if role:
-            user.role = role
-    
-    db.session.add(user)
-    db.session.commit()
-    
-    flash(f'User {username} created successfully', 'success')
-    return redirect(url_for('auth.user_management'))
+    try:
+        # Create new user
+        user = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name
+        )
+        user.set_password(password)
+        
+        # Set role if provided
+        if role_id and role_id.isdigit():
+            role = Role.query.get(int(role_id))
+            if role:
+                user.role = role
+        
+        db.session.add(user)
+        db.session.commit()
+        
+        # Initialize the user's account with empty structure
+        current_app.logger.info(f"Initializing new account for user: {username} (created by admin)")
+        initialize_new_user_account(user)
+        
+        flash(f'User {username} created successfully with a new empty accounting system', 'success')
+        return redirect(url_for('auth.user_management'))
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error during user creation: {str(e)}")
+        flash(f'An error occurred while creating the user. Please try again.', 'error')
+        return redirect(url_for('auth.user_management'))
 
 @auth_bp.route('/edit-user/<int:user_id>', methods=['POST'])
 @login_required
