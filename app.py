@@ -190,3 +190,17 @@ def load_user_data():
             g.user_data = get_user_data(current_user.username)
         except Exception as e:
             app.logger.error(f"Error loading user data: {str(e)}")
+            
+# Set up login hook to create user data files for new users
+from flask_login import user_logged_in
+from utils.user_data import user_data_exists, initialize_empty_account
+
+@user_logged_in.connect_via(app)
+def on_user_logged_in(sender, user, **extra):
+    """Create user data file if it doesn't exist when a user logs in"""
+    try:
+        if not user_data_exists(user.username):
+            app.logger.info(f"Creating empty JSON data file for user: {user.username}")
+            initialize_empty_account(user.username)
+    except Exception as e:
+        app.logger.error(f"Error creating user data file: {str(e)}")

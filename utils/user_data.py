@@ -313,31 +313,34 @@ def get_monthly_trends(username, months=6):
     # Get user data
     data = get_user_data(username)
     
-    # Initialize variables
-    current_month_end = None
-    
-    # Go back X months and calculate income/expenses for each
-    for i in range(months):
-        # Calculate month range
-        if i == 0:
-            # First iteration - current month
-            current_month_end = today.replace(day=1) - timedelta(days=1)  # Last day of previous month
+    # Create empty monthly data for the past X months
+    for i in range(months-1, -1, -1):  # Count backwards from months-1 to 0
+        # Calculate month date
+        month_date = today.replace(day=1)  # First day of current month
+        # Go back i months
+        for _ in range(i):
+            # Go to first day of previous month
+            if month_date.month == 1:
+                month_date = month_date.replace(year=month_date.year-1, month=12)
+            else:
+                month_date = month_date.replace(month=month_date.month-1)
+        
+        # Calculate month end
+        if month_date.month == 12:
+            month_end = month_date.replace(year=month_date.year+1, month=1, day=1) - timedelta(days=1)
         else:
-            # Subsequent iterations - go back one month
-            current_month_end = current_month_start - timedelta(days=1)  # Last day of previous month
-            
-        current_month_start = current_month_end.replace(day=1)  # First day of the month
+            month_end = month_date.replace(month=month_date.month+1, day=1) - timedelta(days=1)
         
         # Format month name
-        month_name = f"{current_month_start.strftime('%b')} {current_month_start.year}"
+        month_name = f"{month_date.strftime('%b')} {month_date.year}"
         
         # Calculate income and expenses for this month
         income = 0
         expenses = 0
         
         # Convert to strings for comparison
-        start_date = current_month_start.isoformat()
-        end_date = current_month_end.isoformat()
+        start_date = month_date.isoformat()
+        end_date = month_end.isoformat()
         
         # Process journal entries
         for entry in data.get("journal_entries", []):
@@ -356,8 +359,7 @@ def get_monthly_trends(username, months=6):
             "expenses": expenses
         })
     
-    # Return in reverse order (most recent first)
-    return list(reversed(result))
+    return result
 
 def initialize_empty_account(username):
     """
