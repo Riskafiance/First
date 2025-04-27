@@ -1,0 +1,22 @@
+{
+  "created_at": "2025-04-27T18:44:58.045504",
+  "last_modified": "2025-04-27T18:44:58.045514",
+  "chart_of_accounts": {
+    "assets": [],
+    "liabilities": [],
+    "equity": [],
+    "revenue": [],
+    "expenses": []
+  },
+  "transactions": [],
+  "journal_entries": [],
+  "customers": [],
+  "vendors": [],
+  "invoices": [],
+  "expenses": [],
+  "products": [],
+  "inventory": [],
+  "fixed_assets": [],
+  "projects": [],
+  "budget_items": []
+}

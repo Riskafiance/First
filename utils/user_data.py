@@ -366,4 +366,138 @@ def initialize_empty_account(username):
     Initialize a completely empty account for a new user
     Creates an empty data file with basic structure but no data
     """
-    return create_user_data_file(username)
+    # Create an empty data structure with all required sections
+    empty_data = {
+        "chart_of_accounts": {
+            "asset": [],
+            "liability": [],
+            "equity": [],
+            "revenue": [],
+            "expense": []
+        },
+        "transactions": [],
+        "journal_entries": [],
+        "customers": [],
+        "vendors": [],
+        "invoices": [],
+        "expenses": [],
+        "products": [],
+        "projects": []
+    }
+    
+    # Create the user data file with this empty structure
+    user_data_path = get_user_data_path(username)
+    os.makedirs(os.path.dirname(user_data_path), exist_ok=True)
+    
+    with open(user_data_path, 'w') as f:
+        json.dump(empty_data, f, cls=JSONEncoder, indent=2)
+    
+    return True
+
+# Function to return mocked ORM model objects for templates
+def get_model_adapter(model_name, username=None):
+    """
+    Return a class that mimics the behavior of a database model
+    but sources data from user's JSON file
+    
+    This helps maintain compatibility with templates that expect
+    database model objects.
+    """
+    if not username:
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            username = current_user.username
+        else:
+            return None
+            
+    class JSONModelAdapter:
+        """Adapter class to mimic database model behavior"""
+        def __init__(self, data):
+            self.__dict__.update(data)
+            
+        def __getattr__(self, name):
+            return self.__dict__.get(name, None)
+            
+    class QueryAdapter:
+        """Adapter class to mimic query behavior"""
+        def __init__(self, items):
+            self.items = items
+            
+        def all(self):
+            """Return all items"""
+            return self.items
+            
+        def first(self):
+            """Return first item or None"""
+            return self.items[0] if self.items else None
+            
+        def count(self):
+            """Return count of items"""
+            return len(self.items)
+            
+        def filter_by(self, **kwargs):
+            """Filter items by attribute values"""
+            filtered = []
+            for item in self.items:
+                match = True
+                for key, value in kwargs.items():
+                    if getattr(item, key, None) != value:
+                        match = False
+                        break
+                if match:
+                    filtered.append(item)
+            return QueryAdapter(filtered)
+            
+        def order_by(self, *args):
+            """Order items (simplified)"""
+            # Currently does nothing, just returns the same query
+            return self
+            
+        def limit(self, limit):
+            """Limit number of items returned"""
+            return QueryAdapter(self.items[:limit])
+            
+    # Get data based on model name
+    data = get_user_data(username)
+    
+    if model_name == 'Invoice':
+        items = [JSONModelAdapter(invoice) for invoice in data.get('invoices', [])]
+    elif model_name == 'Expense':
+        items = [JSONModelAdapter(expense) for expense in data.get('expenses', [])]
+    elif model_name == 'JournalEntry':
+        items = [JSONModelAdapter(entry) for entry in data.get('journal_entries', [])]
+    elif model_name == 'Account':
+        # Flatten the chart of accounts structure
+        account_items = []
+        chart = data.get('chart_of_accounts', {})
+        for category, accounts in chart.items():
+            for account in accounts:
+                account['account_type'] = category
+                account_items.append(account)
+        items = [JSONModelAdapter(account) for account in account_items]
+    elif model_name == 'Product':
+        items = [JSONModelAdapter(product) for product in data.get('products', [])]
+    elif model_name == 'Project':
+        items = [JSONModelAdapter(project) for project in data.get('projects', [])]
+    elif model_name == 'Entity':
+        # Combine customers and vendors
+        entities = []
+        for customer in data.get('customers', []):
+            customer['entity_type'] = 'customer'
+            entities.append(customer)
+        for vendor in data.get('vendors', []):
+            vendor['entity_type'] = 'vendor'
+            entities.append(vendor)
+        items = [JSONModelAdapter(entity) for entity in entities]
+    else:
+        # Return empty list for unknown models
+        items = []
+        
+    # Create query adapter for the items
+    query = QueryAdapter(items)
+    
+    # Return an object with a query attribute to mimic model class
+    class ModelAdapter:
+        query = query
+        
+    return ModelAdapter

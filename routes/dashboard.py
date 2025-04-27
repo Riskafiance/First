@@ -22,6 +22,7 @@ def index():
     permissions = current_user.get_permissions_list()
     username = current_user.username
     
+    # Get user data from their JSON file
     # Get recent invoices (last 5) from user's JSON data
     all_invoices = get_invoices(username)
     # Sort by issue_date (descending) and take the first 5
@@ -58,10 +59,10 @@ def index():
     expense_data = [abs(month_data['expenses']) for month_data in monthly_trends]
     
     # Ensure we have real data in the dashboard financials
-    current_month_income = current_month_summary['income']
-    current_month_expense = current_month_summary['expenses']
-    ytd_income = ytd_summary['income']
-    ytd_expense = ytd_summary['expenses']
+    current_month_income = current_month_summary.get('income', 0)
+    current_month_expense = current_month_summary.get('expenses', 0)
+    ytd_income = ytd_summary.get('income', 0)
+    ytd_expense = ytd_summary.get('expenses', 0)
     
     # Ensure we have arrays, even if empty
     if not months:

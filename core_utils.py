@@ -1,11 +1,21 @@
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-from models import *
+from models import Role
 from app import db
+from flask_login import current_user
+from utils.user_data import get_financial_summary as get_user_financial_summary
+from utils.user_data import get_monthly_trends as get_user_monthly_trends
 
 def get_financial_summary(start_date=None, end_date=None):
-    """Get financial summary for dashboard"""
+    """Get financial summary for dashboard
+    
+    This is a wrapper function that redirects to the user-specific function
+    if a user is logged in, otherwise it uses the database
+    """
+    if current_user.is_authenticated:
+        return get_user_financial_summary(current_user.username, start_date, end_date)
+    
     if not start_date:
         start_date = datetime.now().date().replace(day=1)  # First day of current month
     if not end_date:
@@ -65,7 +75,14 @@ def get_financial_summary(start_date=None, end_date=None):
     }
 
 def get_monthly_trends(months=6):
-    """Get monthly income and expense trends for the last X months"""
+    """Get monthly income and expense trends for the last X months
+    
+    This is a wrapper function that redirects to the user-specific function
+    if a user is logged in, otherwise it uses the database
+    """
+    if current_user.is_authenticated:
+        return get_user_monthly_trends(current_user.username, months)
+        
     today = datetime.now().date()
     data = []
     
