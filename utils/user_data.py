@@ -3,10 +3,22 @@ Utility functions for managing user-specific JSON data files
 """
 import os
 import json
-from datetime import datetime
+from datetime import datetime, date, timedelta
+from decimal import Decimal
+from flask import g, current_app
+from flask_login import current_user
 
 # Path to user data directory
 USER_DATA_DIR = 'user_data'
+
+class JSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder to handle dates and decimals"""
+    def default(self, obj):
+        if isinstance(obj, (date, datetime)):
+            return obj.isoformat()
+        elif isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
 
 def get_user_data_path(username):
     """Get the path to a user's data file"""
@@ -179,6 +191,173 @@ def add_vendor(username, vendor_data):
     # Save the data
     save_user_data(username, data)
     return vendor_data
+
+def get_invoices(username):
+    """Get invoices for a user"""
+    data = get_user_data(username)
+    return data.get("invoices", [])
+
+def get_expenses(username):
+    """Get expenses for a user"""
+    data = get_user_data(username)
+    return data.get("expenses", [])
+
+def get_products(username):
+    """Get products for a user"""
+    data = get_user_data(username)
+    return data.get("products", [])
+
+def get_projects(username):
+    """Get projects for a user"""
+    data = get_user_data(username)
+    return data.get("projects", [])
+
+def add_journal_entry(username, entry_data):
+    """Add a new journal entry"""
+    data = get_user_data(username)
+    
+    # Add a unique ID and timestamps
+    entry_data["id"] = len(data["journal_entries"]) + 1
+    entry_data["created_at"] = datetime.now().isoformat()
+    
+    # Add the entry
+    data["journal_entries"].append(entry_data)
+    
+    # Save the data
+    save_user_data(username, data)
+    return entry_data
+
+def add_invoice(username, invoice_data):
+    """Add a new invoice"""
+    data = get_user_data(username)
+    
+    # Add a unique ID and timestamps
+    invoice_data["id"] = len(data["invoices"]) + 1
+    invoice_data["created_at"] = datetime.now().isoformat()
+    
+    # Add the invoice
+    data["invoices"].append(invoice_data)
+    
+    # Save the data
+    save_user_data(username, data)
+    return invoice_data
+
+def add_expense(username, expense_data):
+    """Add a new expense"""
+    data = get_user_data(username)
+    
+    # Add a unique ID and timestamps
+    expense_data["id"] = len(data["expenses"]) + 1
+    expense_data["created_at"] = datetime.now().isoformat()
+    
+    # Add the expense
+    data["expenses"].append(expense_data)
+    
+    # Save the data
+    save_user_data(username, data)
+    return expense_data
+
+def get_financial_summary(username, start_date=None, end_date=None):
+    """Get financial summary for the dashboard"""
+    if not start_date:
+        start_date = datetime.now().date().replace(day=1)  # First day of current month
+    if not end_date:
+        end_date = datetime.now().date()  # Current date
+        
+    # Convert to strings for comparison if they're date objects
+    if isinstance(start_date, date):
+        start_date = start_date.isoformat()
+    if isinstance(end_date, date):
+        end_date = end_date.isoformat()
+    
+    # Get user data
+    data = get_user_data(username)
+    
+    # Get revenue from journal entries
+    income = 0
+    for entry in data.get("journal_entries", []):
+        entry_date = entry.get("entry_date")
+        if entry_date and start_date <= entry_date <= end_date and entry.get("is_posted", True):
+            for item in entry.get("items", []):
+                if item.get("account_type") == "revenue":
+                    income += item.get("credit_amount", 0) - item.get("debit_amount", 0)
+    
+    # Get expenses from journal entries
+    expenses = 0
+    for entry in data.get("journal_entries", []):
+        entry_date = entry.get("entry_date")
+        if entry_date and start_date <= entry_date <= end_date and entry.get("is_posted", True):
+            for item in entry.get("items", []):
+                if item.get("account_type") == "expense":
+                    expenses += item.get("debit_amount", 0) - item.get("credit_amount", 0)
+    
+    # Get outstanding invoices
+    accounts_receivable = 0
+    for invoice in data.get("invoices", []):
+        if invoice.get("status") in ["sent", "overdue"]:
+            accounts_receivable += invoice.get("total_amount", 0)
+    
+    # Return financial summary
+    return {
+        "income": income,
+        "expenses": expenses,
+        "profit": income - expenses,
+        "accounts_receivable": accounts_receivable
+    }
+
+def get_monthly_trends(username, months=6):
+    """Get monthly trends for the last X months"""
+    today = datetime.now().date()
+    result = []
+    
+    # Get user data
+    data = get_user_data(username)
+    
+    # Initialize variables
+    current_month_end = None
+    
+    # Go back X months and calculate income/expenses for each
+    for i in range(months):
+        # Calculate month range
+        if i == 0:
+            # First iteration - current month
+            current_month_end = today.replace(day=1) - timedelta(days=1)  # Last day of previous month
+        else:
+            # Subsequent iterations - go back one month
+            current_month_end = current_month_start - timedelta(days=1)  # Last day of previous month
+            
+        current_month_start = current_month_end.replace(day=1)  # First day of the month
+        
+        # Format month name
+        month_name = f"{current_month_start.strftime('%b')} {current_month_start.year}"
+        
+        # Calculate income and expenses for this month
+        income = 0
+        expenses = 0
+        
+        # Convert to strings for comparison
+        start_date = current_month_start.isoformat()
+        end_date = current_month_end.isoformat()
+        
+        # Process journal entries
+        for entry in data.get("journal_entries", []):
+            entry_date = entry.get("entry_date")
+            if entry_date and start_date <= entry_date <= end_date and entry.get("is_posted", True):
+                for item in entry.get("items", []):
+                    if item.get("account_type") == "revenue":
+                        income += item.get("credit_amount", 0) - item.get("debit_amount", 0)
+                    elif item.get("account_type") == "expense":
+                        expenses += item.get("debit_amount", 0) - item.get("credit_amount", 0)
+        
+        # Add to result
+        result.append({
+            "month": month_name,
+            "income": income,
+            "expenses": expenses
+        })
+    
+    # Return in reverse order (most recent first)
+    return list(reversed(result))
 
 def initialize_empty_account(username):
     """
