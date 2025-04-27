@@ -1,11 +1,12 @@
 import os
 import logging
 
-from flask import Flask
+from flask import Flask, g
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from werkzeug.middleware.proxy_fix import ProxyFix
+from utils.user_data import get_user_data
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -167,3 +168,25 @@ def inject_role():
         'CANCELLED': 5
     }
     return {'Role': Role, 'statuses': ProjectStatus, 'status_list': status_dict}
+
+@app.context_processor
+def inject_user_data():
+    """Make user data available in templates"""
+    if current_user.is_authenticated:
+        try:
+            user_data = get_user_data(current_user.username)
+            return {'user_data': user_data}
+        except Exception as e:
+            app.logger.error(f"Error loading user data: {str(e)}")
+    return {'user_data': {}}
+
+# Set up request hooks to load user data for each request
+@app.before_request
+def load_user_data():
+    """Load user data before each request if user is authenticated"""
+    g.user_data = None
+    if current_user.is_authenticated:
+        try:
+            g.user_data = get_user_data(current_user.username)
+        except Exception as e:
+            app.logger.error(f"Error loading user data: {str(e)}")

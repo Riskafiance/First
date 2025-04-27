@@ -1,10 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, session, current_app, g
 from flask_login import login_user, logout_user, login_required, current_user
 from app import db, login_manager
 from models import User, Role
 from datetime import datetime
 from functools import wraps
-from utils.user_setup import initialize_new_user_account
+from utils.user_data import initialize_empty_account, user_data_exists, get_user_data
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -83,7 +83,12 @@ def register():
             return render_template('register.html')
         
         try:
-            # Create new user
+            # Check if user data file already exists (just in case)
+            if user_data_exists(username):
+                flash(f'An account already exists for username {username}', 'error')
+                return render_template('register.html')
+                
+            # Create new user in the database
             user = User(
                 username=username,
                 email=email,
@@ -105,11 +110,11 @@ def register():
             db.session.add(user)
             db.session.commit()
             
-            # Initialize the user's account with empty structure
-            current_app.logger.info(f"Initializing new account for user: {username}")
-            initialize_new_user_account(user)
+            # Create a separate JSON data file for this user
+            current_app.logger.info(f"Creating empty JSON data file for user: {username}")
+            data_file = initialize_empty_account(username)
             
-            flash('Registration successful! You can now log in to your new accounting system.', 'success')
+            flash(f'Registration successful! You can now log in to your new accounting system. Your data will be stored in a separate file.', 'success')
             return redirect(url_for('auth.login'))
         except Exception as e:
             db.session.rollback()
@@ -180,9 +185,9 @@ def create_user():
         db.session.add(user)
         db.session.commit()
         
-        # Initialize the user's account with empty structure
-        current_app.logger.info(f"Initializing new account for user: {username} (created by admin)")
-        initialize_new_user_account(user)
+        # Create a separate JSON data file for this user
+        current_app.logger.info(f"Creating empty JSON data file for user: {username} (created by admin)")
+        data_file = initialize_empty_account(username)
         
         flash(f'User {username} created successfully with a new empty accounting system', 'success')
         return redirect(url_for('auth.user_management'))
@@ -245,10 +250,21 @@ def delete_user(user_id):
         return redirect(url_for('auth.user_management'))
     
     username = user.username
+    from utils.user_data import delete_user_data
+    
+    # Delete user data file if it exists
+    try:
+        if user_data_exists(username):
+            delete_user_data(username)
+            current_app.logger.info(f"Deleted data file for user: {username}")
+    except Exception as e:
+        current_app.logger.error(f"Error deleting user data file: {str(e)}")
+    
+    # Delete user from database
     db.session.delete(user)
     db.session.commit()
     
-    flash(f'User {username} deleted successfully', 'success')
+    flash(f'User {username} and their data file deleted successfully', 'success')
     return redirect(url_for('auth.user_management'))
 
 @auth_bp.route('/role-management')
