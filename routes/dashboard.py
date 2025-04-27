@@ -1,18 +1,16 @@
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
-from models import Role, Invoice, Expense, JournalEntry, JournalItem, Account, AccountType
-from app import db
-from sqlalchemy import func, desc
+from models import Role
 import datetime
 from decimal import Decimal
 import os, sys
 from datetime import date
 
-# Import functions from core_utils.py
+# Import functions from user_data.py for user-specific JSON data
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.dirname(current_dir)
 sys.path.insert(0, root_dir)
-from core_utils import get_financial_summary, get_monthly_trends
+from utils.user_data import get_invoices, get_expenses, get_journal_entries, get_financial_summary, get_monthly_trends
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -22,33 +20,37 @@ dashboard_bp = Blueprint('dashboard', __name__)
 def index():
     """Dashboard index page"""
     permissions = current_user.get_permissions_list()
+    username = current_user.username
     
-    # Get recent invoices (last 5)
-    recent_invoices = Invoice.query.order_by(
-        desc(Invoice.issue_date)
-    ).limit(5).all()
+    # Get recent invoices (last 5) from user's JSON data
+    all_invoices = get_invoices(username)
+    # Sort by issue_date (descending) and take the first 5
+    sorted_invoices = sorted(all_invoices, key=lambda x: x.get('issue_date', ''), reverse=True)
+    recent_invoices = sorted_invoices[:5] if sorted_invoices else []
     
-    # Get recent expenses (last 5)
-    recent_expenses = Expense.query.order_by(
-        desc(Expense.expense_date)
-    ).limit(5).all()
+    # Get recent expenses (last 5) from user's JSON data
+    all_expenses = get_expenses(username)
+    # Sort by expense_date (descending) and take the first 5
+    sorted_expenses = sorted(all_expenses, key=lambda x: x.get('expense_date', ''), reverse=True)
+    recent_expenses = sorted_expenses[:5] if sorted_expenses else []
     
-    # Get recent journal entries (last 5)
-    recent_journals = JournalEntry.query.order_by(
-        desc(JournalEntry.entry_date)
-    ).limit(5).all()
+    # Get recent journal entries (last 5) from user's JSON data
+    all_journals = get_journal_entries(username)
+    # Sort by entry_date (descending) and take the first 5
+    sorted_journals = sorted(all_journals, key=lambda x: x.get('entry_date', ''), reverse=True)
+    recent_journals = sorted_journals[:5] if sorted_journals else []
     
     # Get current month's financial summary
     today = date.today()
     current_month_start = today.replace(day=1)
-    current_month_summary = get_financial_summary(current_month_start, today)
+    current_month_summary = get_financial_summary(username, current_month_start, today)
     
     # Get financial summaries for YTD
     current_year_start = date(today.year, 1, 1)
-    ytd_summary = get_financial_summary(current_year_start, today)
+    ytd_summary = get_financial_summary(username, current_year_start, today)
     
     # Get monthly trends data for the past 6 months
-    monthly_trends = get_monthly_trends(6)
+    monthly_trends = get_monthly_trends(username, 6)
     
     # Extract data for the chart - use absolute values to avoid minus signs
     months = [month_data['month'].split()[0] for month_data in monthly_trends]  # Just show the month name, not the year
