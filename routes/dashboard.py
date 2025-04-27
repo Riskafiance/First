@@ -23,51 +23,73 @@ def index():
     """Dashboard index page"""
     permissions = current_user.get_permissions_list()
     
+    # Check if this is a new user
+    # A user is considered new if they don't have any associated data
+    # Check for journal entries, invoices, or expenses linked to this user
+    
+    # Count transactions associated with this user
+    invoice_count = Invoice.query.filter_by(created_by_id=current_user.id).count()
+    expense_count = Expense.query.filter_by(created_by_id=current_user.id).count()
+    journal_count = JournalEntry.query.filter_by(created_by_id=current_user.id).count()
+    
+    # If there are no transactions, consider this a new user with an empty dashboard
+    is_new_user = (invoice_count == 0 and expense_count == 0 and journal_count == 0)
+    
     # Get recent invoices (last 5)
-    recent_invoices = Invoice.query.order_by(
-        desc(Invoice.issue_date)
-    ).limit(5).all()
+    recent_invoices = []
+    if not is_new_user:
+        recent_invoices = Invoice.query.order_by(
+            desc(Invoice.issue_date)
+        ).limit(5).all()
     
     # Get recent expenses (last 5)
-    recent_expenses = Expense.query.order_by(
-        desc(Expense.expense_date)
-    ).limit(5).all()
+    recent_expenses = []
+    if not is_new_user:
+        recent_expenses = Expense.query.order_by(
+            desc(Expense.expense_date)
+        ).limit(5).all()
     
     # Get recent journal entries (last 5)
-    recent_journals = JournalEntry.query.order_by(
-        desc(JournalEntry.entry_date)
-    ).limit(5).all()
+    recent_journals = []
+    if not is_new_user:
+        recent_journals = JournalEntry.query.order_by(
+            desc(JournalEntry.entry_date)
+        ).limit(5).all()
     
-    # Get current month's financial summary
+    # Prepare empty data for new users or get actual data for existing users
     today = date.today()
     current_month_start = today.replace(day=1)
-    current_month_summary = get_financial_summary(current_month_start, today)
-    
-    # Get financial summaries for YTD
     current_year_start = date(today.year, 1, 1)
-    ytd_summary = get_financial_summary(current_year_start, today)
     
-    # Get monthly trends data for the past 6 months
-    monthly_trends = get_monthly_trends(6)
+    # Initialize with empty data
+    current_month_income = 0
+    current_month_expense = 0
+    ytd_income = 0
+    ytd_expense = 0
+    months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']  # Default month names
+    income_data = [0] * 6  # Zero income for chart
+    expense_data = [0] * 6  # Zero expenses for chart
     
-    # Extract data for the chart - use absolute values to avoid minus signs
-    months = [month_data['month'].split()[0] for month_data in monthly_trends]  # Just show the month name, not the year
-    income_data = [abs(month_data['income']) for month_data in monthly_trends]
-    expense_data = [abs(month_data['expenses']) for month_data in monthly_trends]
-    
-    # Ensure we have real data in the dashboard financials
-    current_month_income = current_month_summary['income']
-    current_month_expense = current_month_summary['expenses']
-    ytd_income = ytd_summary['income']
-    ytd_expense = ytd_summary['expenses']
-    
-    # Ensure we have arrays, even if empty
-    if not months:
-        months = [''] * 6  # Empty months for chart if no data
-    if not income_data:
-        income_data = [0] * 6  # Zero income for chart if no data
-    if not expense_data:
-        expense_data = [0] * 6  # Zero expenses for chart if no data
+    # Get actual data if not a new user
+    if not is_new_user:
+        # Get current month's financial summary
+        current_month_summary = get_financial_summary(current_month_start, today)
+        current_month_income = current_month_summary['income']
+        current_month_expense = current_month_summary['expenses']
+        
+        # Get financial summaries for YTD
+        ytd_summary = get_financial_summary(current_year_start, today)
+        ytd_income = ytd_summary['income']
+        ytd_expense = ytd_summary['expenses']
+        
+        # Get monthly trends data for the past 6 months
+        monthly_trends = get_monthly_trends(6)
+        
+        # Extract data for the chart if we have any trends
+        if monthly_trends:
+            months = [month_data['month'].split()[0] for month_data in monthly_trends]
+            income_data = [abs(month_data['income']) for month_data in monthly_trends]
+            expense_data = [abs(month_data['expenses']) for month_data in monthly_trends]
     
     return render_template(
         'dashboard.html',
