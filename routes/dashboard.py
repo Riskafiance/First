@@ -103,5 +103,6 @@ def index():
         current_month_income=current_month_income,
         current_month_expense=current_month_expense,
         ytd_income=ytd_income,
-        ytd_expense=ytd_expense
+        ytd_expense=ytd_expense,
+        is_new_user=is_new_user
     )

@@ -10,7 +10,30 @@
         <div class="card">
             <div class="card-body">
                 <h4 class="mb-3">Welcome, {{ current_user.first_name or current_user.username }}!</h4>
+                
+                {% if is_new_user %}
+                <!-- Special welcome for new users -->
+                <div class="alert alert-info">
+                    <div class="d-flex">
+                        <div class="me-3">
+                            <i class="fas fa-info-circle fa-2x"></i>
+                        </div>
+                        <div>
+                            <h5>Welcome to Your New Account!</h5>
+                            <p>Your dashboard is currently empty. To get started with Riska's Finance Enterprise:</p>
+                            <ul>
+                                <li>Create your first journal entry in the Accounting section</li>
+                                <li>Add customers or vendors in the Entities section</li>
+                                <li>Create your first invoice in the Invoicing section</li>
+                                <li>Record expenses in the Expenses section</li>
+                            </ul>
+                            <p>As you add data, your dashboard will automatically populate with financial insights and reports.</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
                 <p class="text-muted">Welcome to Riska's Finance Enterprise, your comprehensive accounting and financial management platform.</p>
+                {% endif %}
             </div>
         </div>
     </div>
