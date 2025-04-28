@@ -2,6 +2,39 @@
 
 {% block title %}Custom Reports{% endblock %}
 
+{% block extra_css %}
+<style>
+@media print {
+    .btn, .btn-group, .card-header, .dropdown, .form-control, .input-group, 
+    .footer, .navbar, .sidebar-menu, .no-print, form, .d-print-none {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .card-body {
+        padding: 0 !important;
+    }
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    .container-fluid, .container {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+    }
+    .d-print-block {
+        display: block !important;
+    }
+    .report-header {
+        margin-top: 20px;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <div class="row">
@@ -100,6 +133,9 @@
                                         <li><a class="dropdown-item" href="{{ url_for('reports.export_report', type='custom', format='excel', report_type=report_type, start_date=start_date, end_date=end_date, account_ids=account_ids, account_type_ids=account_type_ids, include_unposted='true' if include_unposted else 'false') }}">Excel</a></li>
                                     </ul>
                                 </div>
+                                <button type="button" class="btn btn-outline-secondary ms-2" onclick="window.print()">
+                                    <i class="fas fa-print me-1"></i> Print
+                                </button>
                                 {% endif %}
                             </div>
                         </div>
@@ -120,6 +156,28 @@
                 </div>
                 <div class="card-body">
                     {% if report_type == 'general_ledger' %}
+                    <!-- Company Information (Print Only) -->
+                    <div class="d-none d-print-block mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h2 class="mb-3">Riska's Finance Enterprise</h2>
+                                <p class="mb-1">614 Crawford Ave</p>
+                                <p class="mb-1">Dixon, IL 61021</p>
+                                <p class="mb-1">Phone: +1 (815) 677-5807</p>
+                                <p>Email: Riskas.finances@gmail.com</p>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <h1 class="mb-3">GENERAL LEDGER</h1>
+                                <p class="mb-1"><strong>Period:</strong> {{ report_data.start_date }} to {{ report_data.end_date }}</p>
+                                <p class="mb-1"><strong>Date Printed:</strong> <span id="current-date"></span></p>
+                                <script>
+                                    document.getElementById('current-date').innerHTML = new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                                </script>
+                            </div>
+                        </div>
+                        <hr>
+                    </div>
+                    
                     <div class="report-header mb-4">
                         <h4 class="text-center">General Ledger Report</h4>
                         <h6 class="text-center">Period: {{ report_data.start_date }} to {{ report_data.end_date }}</h6>
