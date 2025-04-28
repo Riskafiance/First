@@ -2,6 +2,35 @@
 
 {% block title %}Purchase Order #{{ po.po_number }}{% endblock %}
 
+{% block extra_css %}
+<style>
+@media print {
+    .btn-group, .card-header, .actions-card, .sidebar-menu, .navbar, .footer, 
+    .no-print, .btn, .d-print-none {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .card-body {
+        padding: 0 !important;
+    }
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    .container-fluid {
+        padding: 0;
+        margin: 0;
+    }
+    .d-print-block {
+        display: block !important;
+    }
+}
+</style>
+{% endblock %}
+
 {% block header %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="h3 mb-0">Purchase Order #{{ po.po_number }}</h1>
@@ -17,7 +46,7 @@
         </a>
         {% endif %}
         
-        <button class="btn btn-outline-success ms-2">
+        <button class="btn btn-outline-success ms-2" onclick="window.print()">
             <i class="fas fa-print me-1"></i> Print
         </button>
     </div>
@@ -43,6 +72,25 @@
                 {% endif %}
             </div>
             <div class="card-body">
+                <!-- Company Information (Print Only) -->
+                <div class="d-none d-print-block mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h2 class="mb-3">Riska's Finance Enterprise</h2>
+                            <p class="mb-1">614 Crawford Ave</p>
+                            <p class="mb-1">Dixon, IL 61021</p>
+                            <p class="mb-1">Phone: +1 (815) 677-5807</p>
+                            <p>Email: Riskas.finances@gmail.com</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <h1 class="mb-3">PURCHASE ORDER</h1>
+                            <p class="mb-1"><strong>PO #:</strong> {{ po.po_number }}</p>
+                            <p class="mb-1"><strong>Date:</strong> {{ po.order_date.strftime('%b %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    <hr>
+                </div>
+                
                 <div class="row">
                     <div class="col-md-6">
                         <dl class="row mb-0">

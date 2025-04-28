@@ -3,6 +3,35 @@
 {% block title %}Profit & Loss Report{% endblock %}
 {% block page_title %}Profit & Loss Report{% endblock %}
 
+{% block extra_css %}
+<style>
+@media print {
+    .btn-group, .card-header, .footer, .navbar, .sidebar-menu, 
+    .no-print, form, .btn, .d-print-none {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .card-body {
+        padding: 0 !important;
+    }
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    .container-fluid {
+        padding: 0;
+        margin: 0;
+    }
+    .d-print-block {
+        display: block !important;
+    }
+}
+</style>
+{% endblock %}
+
 {% block page_actions %}
 <div class="btn-group" role="group">
     <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">
