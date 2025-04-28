@@ -158,6 +158,67 @@ def view(expense_id):
     
     return render_template('expense_view.html', expense=expense, now=datetime.now())
 
+@expenses_bp.route('/expenses/<int:expense_id>/cancel', methods=['GET', 'POST'])
+@login_required
+def cancel(expense_id):
+    """Cancel an expense"""
+    # Check permission
+    if not current_user.has_permission(Role.CAN_EDIT):
+        flash('You do not have permission to cancel expenses.', 'danger')
+        return redirect(url_for('expenses.view', expense_id=expense_id))
+    
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Find the Cancelled status
+    cancelled_status = ExpenseStatus.query.filter_by(name=ExpenseStatus.CANCELLED).first()
+    if not cancelled_status:
+        flash('Could not find cancelled status.', 'danger')
+        return redirect(url_for('expenses.view', expense_id=expense_id))
+    
+    # Update expense status
+    expense.status_id = cancelled_status.id
+    
+    # If the expense was posted, create a reversing journal entry
+    if expense.journal_entry_id:
+        # Find original journal entry
+        orig_journal = JournalEntry.query.get(expense.journal_entry_id)
+        if orig_journal:
+            # Create reversing entry
+            reversal = JournalEntry(
+                entry_date=datetime.now().date(),
+                description=f"Reversal of Expense #{expense.expense_number}",
+                reference=f"EXP-REV-{expense.expense_number}",
+                is_posted=True,
+                created_by_id=current_user.id
+            )
+            db.session.add(reversal)
+            db.session.flush()  # Get the ID
+            
+            # Add items in reverse
+            for item in orig_journal.items:
+                # Switch debit and credit
+                reversal_item = JournalItem(
+                    journal_entry_id=reversal.id,
+                    account_id=item.account_id,
+                    description=f"Reversal: {item.description}",
+                    debit_amount=item.credit_amount,
+                    credit_amount=item.debit_amount
+                )
+                db.session.add(reversal_item)
+    
+    # Log the action
+    expense.updated_by_id = current_user.id
+    expense.updated_at = datetime.now()
+    
+    try:
+        db.session.commit()
+        flash('Expense was successfully cancelled.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error cancelling expense: {str(e)}', 'danger')
+    
+    return redirect(url_for('expenses.view', expense_id=expense_id))
+
 @expenses_bp.route('/expenses/<int:expense_id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit(expense_id):
