@@ -2,8 +2,60 @@
 
 {% block title %}Balance Sheet | Riska's Finance Enterprise{% endblock %}
 
+{% block extra_css %}
+<style>
+@media print {
+    .btn-group, .card-header, .footer, .navbar, .sidebar-menu, 
+    .no-print, form, .btn, .input-group, .d-print-none {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    .card-body {
+        padding: 0 !important;
+    }
+    body {
+        padding: 0;
+        margin: 0;
+    }
+    .container-fluid, .container {
+        padding: 0;
+        margin: 0;
+        max-width: 100%;
+    }
+    .d-print-block {
+        display: block !important;
+    }
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
+    <!-- Company Information (Print Only) -->
+    <div class="d-none d-print-block mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <h2 class="mb-3">Riska's Finance Enterprise</h2>
+                <p class="mb-1">614 Crawford Ave</p>
+                <p class="mb-1">Dixon, IL 61021</p>
+                <p class="mb-1">Phone: +1 (815) 677-5807</p>
+                <p>Email: Riskas.finances@gmail.com</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <h1 class="mb-3">BALANCE SHEET</h1>
+                <p class="mb-1"><strong>As of:</strong> {{ as_of_date }}</p>
+                <p class="mb-1"><strong>Date Printed:</strong> <span id="current-date"></span></p>
+                <script>
+                    document.getElementById('current-date').innerHTML = new Date().toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                </script>
+            </div>
+        </div>
+        <hr>
+    </div>
+    
     <div class="row mb-4">
         <div class="col-md-6">
             <h1 class="h3 mb-0">Balance Sheet</h1>
@@ -24,6 +76,9 @@
                 <a href="{{ url_for('reports.export_report', type='bs', format='excel', as_of_date=as_of_date) }}" class="btn btn-outline-secondary">
                     <i class="fas fa-file-excel me-1"></i> Export Excel
                 </a>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i> Print
+                </button>
             </div>
         </div>
     </div>
