@@ -4,7 +4,7 @@ Financial Snapshot Dashboard routes
 import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Role, Account, AccountType, JournalEntry, JournalItem, Invoice, Expense, Entity, FixedAsset, Product
+from models import Role, Account, AccountType, JournalEntry, JournalItem, Invoice, InvoiceStatus, Expense, ExpenseStatus, Entity, FixedAsset, Product
 from app import db
 from core_utils import (
     get_financial_summary, 
@@ -50,14 +50,18 @@ def financial_snapshot():
         
         total_liabilities = sum(get_account_balance(account.id, end_date=today) for account in liability_accounts)
         
-        # Get total accounts receivable
-        accounts_receivable = db.session.query(func.sum(Invoice.total_amount - Invoice.paid_amount)).filter(
-            Invoice.paid_amount < Invoice.total_amount
+        # Get total accounts receivable - invoices that are not paid or cancelled
+        accounts_receivable = db.session.query(func.sum(Invoice.total_amount)).join(
+            InvoiceStatus, Invoice.status_id == InvoiceStatus.id
+        ).filter(
+            InvoiceStatus.name.in_([InvoiceStatus.DRAFT, InvoiceStatus.SENT, InvoiceStatus.OVERDUE])
         ).scalar() or 0
         
-        # Get total accounts payable
-        accounts_payable = db.session.query(func.sum(Expense.total_amount - Expense.paid_amount)).filter(
-            Expense.paid_amount < Expense.total_amount
+        # Get total accounts payable - expenses that are not paid or rejected
+        accounts_payable = db.session.query(func.sum(Expense.total_amount)).join(
+            ExpenseStatus, Expense.status_id == ExpenseStatus.id
+        ).filter(
+            ExpenseStatus.name.in_([ExpenseStatus.DRAFT, ExpenseStatus.PENDING, ExpenseStatus.APPROVED])
         ).scalar() or 0
         
         # Calculate recent revenue and expenses (last 30 days)
