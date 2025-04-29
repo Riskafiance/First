@@ -236,7 +236,7 @@ def view_project(project_id):
         time_summary = db.session.query(
             func.sum(TimeEntry.hours).label('total_hours'),
             func.sum(TimeEntry.cost_amount).label('total_cost'),
-            func.sum(func.case((TimeEntry.is_billable, TimeEntry.billable_amount), else_=0)).label('total_billable')
+            func.sum(func.case([(TimeEntry.is_billable, TimeEntry.billable_amount)], else_=0)).label('total_billable')
         ).filter(
             TimeEntry.project_id == project_id
         ).first()
@@ -244,7 +244,7 @@ def view_project(project_id):
         # Get expense summary
         expense_summary = db.session.query(
             func.sum(ProjectExpense.amount).label('total_expense'),
-            func.sum(func.case((ProjectExpense.is_billable, ProjectExpense.billable_amount), else_=0)).label('total_billable')
+            func.sum(func.case([(ProjectExpense.is_billable, ProjectExpense.billable_amount)], else_=0)).label('total_billable')
         ).filter(
             ProjectExpense.project_id == project_id
         ).first()
