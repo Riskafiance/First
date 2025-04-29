@@ -233,21 +233,32 @@ def view_project(project_id):
         ).order_by(JobTask.start_date).all()
         
         # Get time entries summary
-        time_summary = db.session.query(
-            func.sum(TimeEntry.hours).label('total_hours'),
-            func.sum(TimeEntry.cost_amount).label('total_cost'),
-            func.sum(func.case([(TimeEntry.is_billable, TimeEntry.billable_amount)], else_=0)).label('total_billable')
-        ).filter(
-            TimeEntry.project_id == project_id
-        ).first()
+        time_entry_data = TimeEntry.query.filter_by(project_id=project_id).all()
+        total_hours = sum(entry.hours for entry in time_entry_data if entry.hours) if time_entry_data else 0
+        total_cost = sum(entry.cost_amount for entry in time_entry_data if entry.cost_amount) if time_entry_data else 0
+        total_billable_time = sum(entry.billable_amount for entry in time_entry_data if entry.is_billable and entry.billable_amount) if time_entry_data else 0
+        
+        # Create a simple object to hold the summary data
+        class TimeSummary:
+            def __init__(self, total_hours, total_cost, total_billable):
+                self.total_hours = total_hours
+                self.total_cost = total_cost 
+                self.total_billable = total_billable
+                
+        time_summary = TimeSummary(total_hours, total_cost, total_billable_time)
         
         # Get expense summary
-        expense_summary = db.session.query(
-            func.sum(ProjectExpense.amount).label('total_expense'),
-            func.sum(func.case([(ProjectExpense.is_billable, ProjectExpense.billable_amount)], else_=0)).label('total_billable')
-        ).filter(
-            ProjectExpense.project_id == project_id
-        ).first()
+        expense_data = ProjectExpense.query.filter_by(project_id=project_id).all()
+        total_expense = sum(expense.amount for expense in expense_data if expense.amount) if expense_data else 0
+        total_billable_expense = sum(expense.billable_amount for expense in expense_data if expense.is_billable and expense.billable_amount) if expense_data else 0
+        
+        # Create a simple object to hold the expense summary
+        class ExpenseSummary:
+            def __init__(self, total_expense, total_billable):
+                self.total_expense = total_expense
+                self.total_billable = total_billable
+                
+        expense_summary = ExpenseSummary(total_expense, total_billable_expense)
         
         # Get recent time entries
         recent_time = TimeEntry.query.filter_by(
