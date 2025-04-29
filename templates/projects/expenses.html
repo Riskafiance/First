@@ -1,0 +1,241 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ project.name }} | Project Expenses{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{{ project.name }} - Expenses</h1>
+        <p class="text-muted mb-0">{{ project.project_code }}</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Project
+        </a>
+        
+        <a href="{{ url_for('projects.add_expense', project_id=project.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-plus me-1"></i> Add Expense
+        </a>
+        
+        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print me-1"></i> Print
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Business Information (will show when printed) -->
+<div class="d-none d-print-block mb-4">
+    <div class="text-center">
+        <h2>Riska's Finance Enterprise</h2>
+        <p>614 Crawford Ave, Dixon IL, 61021<br>
+        Phone: +1 (815) 677-5807<br>
+        Email: Riskas.finances@gmail.com</p>
+        <h3>Project Expenses</h3>
+        <p><strong>{{ project.name }}</strong></p>
+        <p>Generated on <span id="report-date"></span></p>
+    </div>
+</div>
+
+<!-- Filter form -->
+<div class="card shadow-sm mb-4 d-print-none">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filter Expenses</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ selected_start_date }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ selected_end_date }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="account_id" class="form-label">Category</label>
+                <select class="form-select" id="account_id" name="account_id">
+                    <option value="">All Categories</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if selected_account == account.id|string %}selected{% endif %}>
+                        {{ account.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="billable" class="form-label">Billing Status</label>
+                <select class="form-select" id="billable" name="billable">
+                    <option value="">All Expenses</option>
+                    <option value="yes" {% if selected_billable == 'yes' %}selected{% endif %}>Billable Only</option>
+                    <option value="no" {% if selected_billable == 'no' %}selected{% endif %}>Non-billable Only</option>
+                </select>
+            </div>
+            
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('projects.project_expenses', project_id=project.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Expenses</h6>
+                        <h3>{{ total_amount|format_currency }}</h3>
+                    </div>
+                    <div class="icon-box bg-light-danger text-danger">
+                        <i class="fas fa-receipt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Billable Amount</h6>
+                        <h3>{{ total_billable|format_currency }}</h3>
+                    </div>
+                    <div class="icon-box bg-light-success text-success">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expenses table -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Project Expenses</h5>
+    </div>
+    <div class="card-body">
+        {% if expenses %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-end">Billable Amount</th>
+                        <th class="text-center d-print-none">Status</th>
+                        <th class="text-center d-print-none">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for expense in expenses %}
+                    <tr>
+                        <td>{{ expense.date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ expense.description }}</td>
+                        <td>{{ expense.account.name if expense.account else "" }}</td>
+                        <td class="text-end">{{ expense.amount|format_currency }}</td>
+                        <td class="text-end">{{ expense.billable_amount|format_currency if expense.billable_amount else '$0.00' }}</td>
+                        <td class="text-center d-print-none">
+                            <span class="badge bg-{{ 'success' if expense.is_billable else 'secondary' }}">
+                                {{ 'Billable' if expense.is_billable else 'Non-billable' }}
+                            </span>
+                        </td>
+                        <td class="text-center d-print-none">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('projects.edit_expense', project_id=project.id, expense_id=expense.id) }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteExpenseModal" 
+                                    data-expense-id="{{ expense.id }}"
+                                    data-expense-desc="{{ expense.description }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <th colspan="3">Total</th>
+                        <th class="text-end">{{ total_amount|format_currency }}</th>
+                        <th class="text-end">{{ total_billable|format_currency }}</th>
+                        <th colspan="2" class="d-print-none"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No expenses found for the selected filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteExpenseModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the expense: <span id="expenseDesc"></span>?</p>
+                <p>This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteExpenseForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up delete confirmation modal
+    const deleteModal = document.getElementById('deleteExpenseModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const expenseId = button.getAttribute('data-expense-id');
+            const expenseDesc = button.getAttribute('data-expense-desc');
+            
+            document.getElementById('expenseDesc').textContent = expenseDesc;
+            document.getElementById('deleteExpenseForm').action = 
+                "{{ url_for('projects.delete_expense', project_id=project.id, expense_id=0) }}".replace('0', expenseId);
+        });
+    }
+    
+    // Set the report date to today's date when the report is viewed or printed
+    const now = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('report-date').textContent = now.toLocaleDateString('en-US', options);
+});
+</script>
+{% endblock %}

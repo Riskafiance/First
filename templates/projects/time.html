@@ -1,0 +1,274 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ project.name }} | Time Entries{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{{ project.name }} - Time Entries</h1>
+        <p class="text-muted mb-0">{{ project.project_code }}</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Project
+        </a>
+        
+        <a href="{{ url_for('projects.add_time_entry', project_id=project.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-plus me-1"></i> Log Time
+        </a>
+        
+        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print me-1"></i> Print
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Business Information (will show when printed) -->
+<div class="d-none d-print-block mb-4">
+    <div class="text-center">
+        <h2>Riska's Finance Enterprise</h2>
+        <p>614 Crawford Ave, Dixon IL, 61021<br>
+        Phone: +1 (815) 677-5807<br>
+        Email: Riskas.finances@gmail.com</p>
+        <h3>Project Time Entries</h3>
+        <p><strong>{{ project.name }}</strong></p>
+        <p>Generated on <span id="report-date"></span></p>
+    </div>
+</div>
+
+<!-- Filter form -->
+<div class="card shadow-sm mb-4 d-print-none">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filter Time Entries</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="{{ selected_start_date }}">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="{{ selected_end_date }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="user_id" class="form-label">User</label>
+                <select class="form-select" id="user_id" name="user_id">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if selected_user == user.id|string %}selected{% endif %}>
+                        {{ user.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="task_id" class="form-label">Task</label>
+                <select class="form-select" id="task_id" name="task_id">
+                    <option value="">All Tasks</option>
+                    {% for task in tasks %}
+                    <option value="{{ task.id }}" {% if selected_task == task.id|string %}selected{% endif %}>
+                        {{ task.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="billable" class="form-label">Billing Status</label>
+                <select class="form-select" id="billable" name="billable">
+                    <option value="">All Entries</option>
+                    <option value="yes" {% if selected_billable == 'yes' %}selected{% endif %}>Billable Only</option>
+                    <option value="no" {% if selected_billable == 'no' %}selected{% endif %}>Non-billable Only</option>
+                </select>
+            </div>
+            
+            <div class="col-12 text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('projects.project_time', project_id=project.id) }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> Clear Filters
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Hours</h6>
+                        <h3>{{ total_hours }}</h3>
+                    </div>
+                    <div class="icon-box bg-light-primary text-primary">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Total Cost</h6>
+                        <h3>{{ total_cost|format_currency }}</h3>
+                    </div>
+                    <div class="icon-box bg-light-danger text-danger">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="text-muted">Billable Amount</h6>
+                        <h3>{{ total_billable|format_currency }}</h3>
+                    </div>
+                    <div class="icon-box bg-light-success text-success">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Time entries table -->
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Time Entries</h5>
+    </div>
+    <div class="card-body">
+        {% if time_entries %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>User</th>
+                        <th>Task</th>
+                        <th>Description</th>
+                        <th class="text-end">Hours</th>
+                        <th class="text-end">Cost</th>
+                        <th class="text-end">Billable</th>
+                        <th class="text-center d-print-none">Status</th>
+                        <th class="text-center d-print-none">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in time_entries %}
+                    <tr>
+                        <td>{{ entry.date.strftime('%b %d, %Y') }}</td>
+                        <td>{{ entry.user.username }}</td>
+                        <td>{{ entry.task.name if entry.task else "" }}</td>
+                        <td>{{ entry.description }}</td>
+                        <td class="text-end">{{ entry.hours }}</td>
+                        <td class="text-end">{{ entry.cost_amount|format_currency if entry.cost_amount else '$0.00' }}</td>
+                        <td class="text-end">{{ entry.billable_amount|format_currency if entry.billable_amount else '$0.00' }}</td>
+                        <td class="text-center d-print-none">
+                            <span class="badge bg-{{ 'success' if entry.is_billable else 'secondary' }}">
+                                {{ 'Billable' if entry.is_billable else 'Non-billable' }}
+                            </span>
+                        </td>
+                        <td class="text-center d-print-none">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('projects.edit_time_entry', project_id=project.id, entry_id=entry.id) }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-danger" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteTimeEntryModal" 
+                                    data-entry-id="{{ entry.id }}"
+                                    data-entry-date="{{ entry.date.strftime('%b %d, %Y') }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <th colspan="4">Total</th>
+                        <th class="text-end">{{ total_hours }}</th>
+                        <th class="text-end">{{ total_cost|format_currency }}</th>
+                        <th class="text-end">{{ total_billable|format_currency }}</th>
+                        <th colspan="2" class="d-print-none"></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i> No time entries found for the selected filters.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteTimeEntryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this time entry from <span id="entryDate"></span>?</p>
+                <p>This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteTimeEntryForm" method="post" action="">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set up delete confirmation modal
+    const deleteModal = document.getElementById('deleteTimeEntryModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const entryId = button.getAttribute('data-entry-id');
+            const entryDate = button.getAttribute('data-entry-date');
+            
+            document.getElementById('entryDate').textContent = entryDate;
+            document.getElementById('deleteTimeEntryForm').action = 
+                "{{ url_for('projects.delete_time_entry', project_id=project.id, entry_id=0) }}".replace('0', entryId);
+        });
+    }
+    
+    // Set the report date to today's date when the report is viewed or printed
+    const now = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('report-date').textContent = now.toLocaleDateString('en-US', options);
+});
+</script>
+{% endblock %}
