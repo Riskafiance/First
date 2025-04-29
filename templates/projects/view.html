@@ -172,7 +172,7 @@
                             <h6 class="text-muted">Client</h6>
                             <p>
                                 {% if project.entity %}
-                                <a href="{{ url_for('entities.view_entity', entity_id=project.entity.id) }}" class="link-primary">
+                                <a href="{{ url_for('entities.view', entity_id=project.entity.id) }}" class="link-primary">
                                     {{ project.entity.name }}
                                 </a>
                                 {% else %}

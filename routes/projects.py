@@ -1218,55 +1218,145 @@ def project_reports(project_id):
     try:
         project = Project.query.get_or_404(project_id)
         
-        # Get time summary by task
-        task_time_summary = db.session.query(
-            JobTask.id,
-            JobTask.name,
-            func.sum(TimeEntry.hours).label('total_hours'),
-            func.sum(TimeEntry.cost_amount).label('total_cost'),
-            func.sum(func.case((TimeEntry.is_billable, TimeEntry.billable_amount), else_=0)).label('total_billable')
-        ).outerjoin(
-            TimeEntry, TimeEntry.task_id == JobTask.id
-        ).filter(
-            JobTask.project_id == project_id
-        ).group_by(
-            JobTask.id, JobTask.name
-        ).order_by(
-            JobTask.name
-        ).all()
+        # Get all time entries for this project
+        time_entries = TimeEntry.query.filter_by(project_id=project_id).all()
         
-        # Get time summary by user
-        user_time_summary = db.session.query(
-            User.id,
-            User.username,
-            func.sum(TimeEntry.hours).label('total_hours'),
-            func.sum(TimeEntry.cost_amount).label('total_cost'),
-            func.sum(func.case((TimeEntry.is_billable, TimeEntry.billable_amount), else_=0)).label('total_billable')
-        ).join(
-            TimeEntry, TimeEntry.user_id == User.id
-        ).filter(
-            TimeEntry.project_id == project_id
-        ).group_by(
-            User.id, User.username
-        ).order_by(
-            User.username
-        ).all()
+        # Create a summary by task
+        task_summaries = {}
         
-        # Get expense summary by category
-        expense_summary = db.session.query(
-            Account.id,
-            Account.name,
-            func.sum(ProjectExpense.amount).label('total_amount'),
-            func.sum(func.case((ProjectExpense.is_billable, ProjectExpense.billable_amount), else_=0)).label('total_billable')
-        ).join(
-            ProjectExpense, ProjectExpense.account_id == Account.id
-        ).filter(
-            ProjectExpense.project_id == project_id
-        ).group_by(
-            Account.id, Account.name
-        ).order_by(
-            Account.name
-        ).all()
+        for entry in time_entries:
+            if entry.task_id:
+                task_id = entry.task_id
+                task_name = entry.task.name if entry.task else "No Task"
+                
+                if task_id not in task_summaries:
+                    task_summaries[task_id] = {
+                        'id': task_id,
+                        'name': task_name,
+                        'total_hours': 0,
+                        'total_cost': 0,
+                        'total_billable': 0
+                    }
+                
+                task_summaries[task_id]['total_hours'] += entry.hours if entry.hours else 0
+                task_summaries[task_id]['total_cost'] += entry.cost_amount if entry.cost_amount else 0
+                
+                if entry.is_billable and entry.billable_amount:
+                    task_summaries[task_id]['total_billable'] += entry.billable_amount
+        
+        # Convert dictionary to list of objects
+        class TaskSummary:
+            def __init__(self, id, name, total_hours, total_cost, total_billable):
+                self.id = id
+                self.name = name
+                self.total_hours = total_hours
+                self.total_cost = total_cost
+                self.total_billable = total_billable
+                
+        task_time_summary = [
+            TaskSummary(
+                task_data['id'],
+                task_data['name'],
+                task_data['total_hours'],
+                task_data['total_cost'],
+                task_data['total_billable']
+            )
+            for task_id, task_data in task_summaries.items()
+        ]
+        
+        # Sort by name
+        task_time_summary.sort(key=lambda x: x.name if x.name else "")
+        
+        # Create a summary by user
+        user_summaries = {}
+        
+        for entry in time_entries:
+            if entry.user_id:
+                user_id = entry.user_id
+                username = entry.user.username if entry.user else "Unknown User"
+                
+                if user_id not in user_summaries:
+                    user_summaries[user_id] = {
+                        'id': user_id,
+                        'username': username,
+                        'total_hours': 0,
+                        'total_cost': 0,
+                        'total_billable': 0
+                    }
+                
+                user_summaries[user_id]['total_hours'] += entry.hours if entry.hours else 0
+                user_summaries[user_id]['total_cost'] += entry.cost_amount if entry.cost_amount else 0
+                
+                if entry.is_billable and entry.billable_amount:
+                    user_summaries[user_id]['total_billable'] += entry.billable_amount
+        
+        # Convert dictionary to list of objects
+        class UserSummary:
+            def __init__(self, id, username, total_hours, total_cost, total_billable):
+                self.id = id
+                self.username = username
+                self.total_hours = total_hours
+                self.total_cost = total_cost
+                self.total_billable = total_billable
+                
+        user_time_summary = [
+            UserSummary(
+                user_data['id'],
+                user_data['username'],
+                user_data['total_hours'],
+                user_data['total_cost'],
+                user_data['total_billable']
+            )
+            for user_id, user_data in user_summaries.items()
+        ]
+        
+        # Sort by username
+        user_time_summary.sort(key=lambda x: x.username if x.username else "")
+        
+        # Get all expenses for this project
+        expenses = ProjectExpense.query.filter_by(project_id=project_id).all()
+        
+        # Create a summary by account
+        expense_summaries = {}
+        
+        for expense in expenses:
+            if expense.account_id:
+                account_id = expense.account_id
+                account_name = expense.account.name if expense.account else "No Account"
+                
+                if account_id not in expense_summaries:
+                    expense_summaries[account_id] = {
+                        'id': account_id,
+                        'name': account_name,
+                        'total_amount': 0,
+                        'total_billable': 0
+                    }
+                
+                expense_summaries[account_id]['total_amount'] += expense.amount if expense.amount else 0
+                
+                if expense.is_billable and expense.billable_amount:
+                    expense_summaries[account_id]['total_billable'] += expense.billable_amount
+        
+        # Convert dictionary to list of objects
+        class ExpenseSummary:
+            def __init__(self, id, name, total_amount, total_billable):
+                self.id = id
+                self.name = name
+                self.total_amount = total_amount
+                self.total_billable = total_billable
+                
+        expense_summary = [
+            ExpenseSummary(
+                account_data['id'],
+                account_data['name'],
+                account_data['total_amount'],
+                account_data['total_billable']
+            )
+            for account_id, account_data in expense_summaries.items()
+        ]
+        
+        # Sort by name
+        expense_summary.sort(key=lambda x: x.name if x.name else "")
         
         # Calculate project totals
         total_hours = sum(row.total_hours or 0 for row in task_time_summary)
