@@ -1,0 +1,347 @@
+{% extends 'layout.html' %}
+
+{% block title %}{{ project.name }} | Project Reports{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">{{ project.name }} - Reports</h1>
+        <p class="text-muted mb-0">{{ project.project_code }}</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Project
+        </a>
+        
+        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+            <i class="fas fa-print me-1"></i> Print Report
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Business Information (will show when printed) -->
+<div class="d-none d-print-block mb-4">
+    <div class="text-center">
+        <h2>Riska's Finance Enterprise</h2>
+        <p>614 Crawford Ave, Dixon IL, 61021<br>
+        Phone: +1 (815) 677-5807<br>
+        Email: Riskas.finances@gmail.com</p>
+        <h3>Project Report</h3>
+        <p>Generated on <span id="report-date"></span></p>
+    </div>
+</div>
+
+<!-- Project summary cards -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Project Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Status</h6>
+                            <p>
+                                <span class="badge rounded-pill 
+                                    {% if project.status.name == 'In Progress' %}bg-success{% endif %}
+                                    {% if project.status.name == 'Planned' %}bg-info{% endif %}
+                                    {% if project.status.name == 'On Hold' %}bg-warning{% endif %}
+                                    {% if project.status.name == 'Completed' %}bg-secondary{% endif %}
+                                    {% if project.status.name == 'Cancelled' %}bg-danger{% endif %}">
+                                    {{ project.status.name }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Client</h6>
+                            <p>{{ project.entity.name if project.entity else 'No client assigned' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Dates</h6>
+                            <p>{{ project.start_date.strftime('%b %d, %Y') }} - 
+                               {{ project.end_date.strftime('%b %d, %Y') if project.end_date else 'Ongoing' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <h6 class="text-muted">Manager</h6>
+                            <p>{{ project.manager.username if project.manager else 'No manager assigned' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Financial Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Project Revenue</h6>
+                                        <h4 class="text-success">{{ total_revenue|format_currency }}</h4>
+                                    </div>
+                                    <div class="icon-box bg-light-success text-success">
+                                        <i class="fas fa-dollar-sign"></i>
+                                    </div>
+                                </div>
+                                <div class="text-muted small">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Billable Time:</span>
+                                        <span>{{ total_billable_time|format_currency }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Billable Expenses:</span>
+                                        <span>{{ total_billable_expenses|format_currency }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Project Costs</h6>
+                                        <h4 class="text-danger">{{ (total_cost + total_expenses)|format_currency }}</h4>
+                                    </div>
+                                    <div class="icon-box bg-light-danger text-danger">
+                                        <i class="fas fa-coins"></i>
+                                    </div>
+                                </div>
+                                <div class="text-muted small">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Time Costs:</span>
+                                        <span>{{ total_cost|format_currency }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Expenses:</span>
+                                        <span>{{ total_expenses|format_currency }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h6 class="text-muted">Profit/Loss</h6>
+                                        <h4 class="{% if project_profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                            {{ project_profit|format_currency }}
+                                        </h4>
+                                    </div>
+                                    <div class="icon-box 
+                                        {% if project_profit >= 0 %}bg-light-success text-success{% else %}bg-light-danger text-danger{% endif %}">
+                                        <i class="fas {% if project_profit >= 0 %}fa-chart-line{% else %}fa-chart-line-down{% endif %}"></i>
+                                    </div>
+                                </div>
+                                <div class="text-muted small">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Profit Margin:</span>
+                                        <span>{{ "%.1f"|format(profit_margin) }}%</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Hours:</span>
+                                        <span>{{ total_hours }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Time summary by task -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Time Summary by Task</h5>
+            </div>
+            <div class="card-body">
+                {% if task_time_summary %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th class="text-end">Hours</th>
+                                <th class="text-end">Cost</th>
+                                <th class="text-end">Billable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in task_time_summary %}
+                            <tr>
+                                <td>{{ task.name }}</td>
+                                <td class="text-end">{{ task.total_hours|default(0) }}</td>
+                                <td class="text-end">{{ task.total_cost|format_currency if task.total_cost else '$0.00' }}</td>
+                                <td class="text-end">{{ task.total_billable|format_currency if task.total_billable else '$0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th>Total</th>
+                                <th class="text-end">{{ total_hours }}</th>
+                                <th class="text-end">{{ total_cost|format_currency }}</th>
+                                <th class="text-end">{{ total_billable_time|format_currency }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No time entries have been recorded for this project.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Time Summary by User</h5>
+            </div>
+            <div class="card-body">
+                {% if user_time_summary %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th class="text-end">Hours</th>
+                                <th class="text-end">Cost</th>
+                                <th class="text-end">Billable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in user_time_summary %}
+                            <tr>
+                                <td>{{ user.username }}</td>
+                                <td class="text-end">{{ user.total_hours|default(0) }}</td>
+                                <td class="text-end">{{ user.total_cost|format_currency if user.total_cost else '$0.00' }}</td>
+                                <td class="text-end">{{ user.total_billable|format_currency if user.total_billable else '$0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th>Total</th>
+                                <th class="text-end">{{ total_hours }}</th>
+                                <th class="text-end">{{ total_cost|format_currency }}</th>
+                                <th class="text-end">{{ total_billable_time|format_currency }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No time entries have been recorded for this project.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Expense summary -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Expense Summary</h5>
+            </div>
+            <div class="card-body">
+                {% if expense_summary %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th class="text-end">Amount</th>
+                                <th class="text-end">Billable</th>
+                                <th class="text-end">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expense_summary %}
+                            <tr>
+                                <td>{{ expense.name }}</td>
+                                <td class="text-end">{{ expense.total_amount|format_currency }}</td>
+                                <td class="text-end">{{ expense.total_billable|format_currency }}</td>
+                                <td class="text-end">
+                                    {% if expense.total_amount > 0 %}
+                                    {{ (((expense.total_billable / expense.total_amount) - 1) * 100)|round(1) }}%
+                                    {% else %}
+                                    0%
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light">
+                                <th>Total</th>
+                                <th class="text-end">{{ total_expenses|format_currency }}</th>
+                                <th class="text-end">{{ total_billable_expenses|format_currency }}</th>
+                                <th class="text-end">
+                                    {% if total_expenses > 0 %}
+                                    {{ (((total_billable_expenses / total_expenses) - 1) * 100)|round(1) }}%
+                                    {% else %}
+                                    0%
+                                    {% endif %}
+                                </th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    No expenses have been recorded for this project.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set the report date to today's date when the report is viewed or printed
+    const now = new Date();
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('report-date').textContent = now.toLocaleDateString('en-US', options);
+});
+</script>
+{% endblock %}

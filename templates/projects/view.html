@@ -220,7 +220,7 @@
                                 {% if project.is_fixed_price and project.fixed_price_amount %}
                                 {{ project.fixed_price_amount|format_currency }}
                                 {% else %}
-                                {{ (time_summary.total_billable or 0) + (expense_summary.total_billable or 0)|format_currency }}
+                                {{ ((time_summary.total_billable or 0) + (expense_summary.total_billable or 0))|format_currency }}
                                 {% endif %}
                             </p>
                         </div>

@@ -1,0 +1,234 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    {% if editing %}
+        Edit Time Entry | {{ project.name }}
+    {% else %}
+        Log Time | {{ project.name }}
+    {% endif %}
+{% endblock %}
+
+{% block header %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-0">
+            {% if editing %}
+                Edit Time Entry
+            {% else %}
+                Log Time
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ project.name }}</p>
+    </div>
+    
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Back to Project
+        </a>
+        
+        <a href="{{ url_for('projects.project_time', project_id=project.id) }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i> All Time Entries
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    {% if editing %}
+                        Edit Time Entry Details
+                    {% else %}
+                        Time Entry Details
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="date" class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="date" name="date" value="{{ time_entry.date.strftime('%Y-%m-%d') if editing else today.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="hours" class="form-label">Hours <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="hours" name="hours" min="0.25" step="0.25" value="{{ time_entry.hours if editing else '' }}" required>
+                            <small class="form-text text-muted">Enter hours in quarter-hour increments (0.25, 0.5, 0.75, etc.)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="task_id" class="form-label">Task</label>
+                            <select class="form-select" id="task_id" name="task_id">
+                                <option value="">-- No Task --</option>
+                                {% for task in tasks %}
+                                <option value="{{ task.id }}" 
+                                    {% if editing and time_entry.task_id == task.id %}selected{% endif %}>
+                                    {{ task.name }}
+                                </option>
+                                    {% for subtask in task.subtasks %}
+                                    <option value="{{ subtask.id }}" 
+                                        {% if editing and time_entry.task_id == subtask.id %}selected{% endif %}>
+                                        &nbsp;&nbsp;&nbsp;↳ {{ subtask.name }}
+                                    </option>
+                                    {% endfor %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ time_entry.description if editing else '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_billable" name="is_billable" 
+                                    {% if editing and time_entry.is_billable %}checked{% endif %}>
+                                <label class="form-check-label" for="is_billable">
+                                    Billable
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3 billable-section" style="{% if not editing or not time_entry.is_billable %}display: none;{% endif %}">
+                        <div class="col-md-6">
+                            <label for="billing_rate" class="form-label">Billing Rate</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="billing_rate" name="billing_rate" min="0" step="0.01" value="{{ time_entry.billing_rate if editing and time_entry.billing_rate else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="billable_amount" class="form-label">Billable Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="billable_amount" name="billable_amount" readonly value="{{ time_entry.billable_amount if editing and time_entry.billable_amount else '' }}">
+                            </div>
+                            <small class="form-text text-muted">Calculated: Rate × Hours</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="cost_rate" class="form-label">Cost Rate</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="cost_rate" name="cost_rate" min="0" step="0.01" value="{{ time_entry.cost_rate if editing and time_entry.cost_rate else '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="cost_amount" class="form-label">Cost Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="cost_amount" name="cost_amount" readonly value="{{ time_entry.cost_amount if editing and time_entry.cost_amount else '' }}">
+                            </div>
+                            <small class="form-text text-muted">Calculated: Cost Rate × Hours</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn btn-outline-secondary me-md-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            {% if editing %}
+                                Update Time Entry
+                            {% else %}
+                                Save Time Entry
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const billableCheckbox = document.getElementById('is_billable');
+    const billableSection = document.querySelector('.billable-section');
+    const hoursInput = document.getElementById('hours');
+    const billingRateInput = document.getElementById('billing_rate');
+    const billableAmountInput = document.getElementById('billable_amount');
+    const costRateInput = document.getElementById('cost_rate');
+    const costAmountInput = document.getElementById('cost_amount');
+    const taskSelect = document.getElementById('task_id');
+    
+    // Toggle billable section based on checkbox
+    billableCheckbox.addEventListener('change', function() {
+        billableSection.style.display = this.checked ? 'flex' : 'none';
+        if (!this.checked) {
+            billingRateInput.value = '';
+            billableAmountInput.value = '';
+        }
+    });
+    
+    // Calculate billable amount when rate or hours change
+    function calculateBillableAmount() {
+        const hours = parseFloat(hoursInput.value) || 0;
+        const rate = parseFloat(billingRateInput.value) || 0;
+        if (hours > 0 && rate > 0) {
+            billableAmountInput.value = (hours * rate).toFixed(2);
+        } else {
+            billableAmountInput.value = '';
+        }
+    }
+    
+    // Calculate cost amount when rate or hours change
+    function calculateCostAmount() {
+        const hours = parseFloat(hoursInput.value) || 0;
+        const rate = parseFloat(costRateInput.value) || 0;
+        if (hours > 0 && rate > 0) {
+            costAmountInput.value = (hours * rate).toFixed(2);
+        } else {
+            costAmountInput.value = '';
+        }
+    }
+    
+    hoursInput.addEventListener('input', function() {
+        calculateBillableAmount();
+        calculateCostAmount();
+    });
+    
+    billingRateInput.addEventListener('input', calculateBillableAmount);
+    costRateInput.addEventListener('input', calculateCostAmount);
+    
+    // Load task details when a task is selected
+    taskSelect.addEventListener('change', function() {
+        const taskId = this.value;
+        if (taskId) {
+            fetch(`/projects/api/tasks/${taskId}/info`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update billing flag and rate based on task settings
+                        if (data.is_billable) {
+                            billableCheckbox.checked = true;
+                            billableSection.style.display = 'flex';
+                            
+                            if (data.billing_rate && !billingRateInput.value) {
+                                billingRateInput.value = data.billing_rate;
+                                calculateBillableAmount();
+                            }
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching task info:', error));
+        }
+    });
+});
+</script>
+{% endblock %}
