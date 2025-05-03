@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +14,7 @@
         
         body {
             overflow-x: hidden;
+            background-color: #f4f5f7; /* Beautiful light gray background */
         }
         
         #sidebar {
@@ -22,11 +23,13 @@
             height: 100vh;
             top: 0;
             left: 0;
-            background-color: var(--bs-gray-800);
+            background-color: #ffffff;
             padding-top: 60px;
             z-index: 100;
             transition: all 0.3s;
             overflow-y: auto;
+            border-right: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.03);
         }
         
         #sidebar.collapsed {
@@ -34,11 +37,13 @@
         }
         
         #sidebar .nav-link {
-            color: var(--bs-gray-300);
+            color: var(--bs-gray-700);
             padding: 0.8rem 1rem;
             display: flex;
             align-items: center;
             transition: all 0.3s;
+            border-radius: 0.25rem;
+            margin: 0.2rem 0.5rem;
         }
         
         #sidebar .nav-link i {
@@ -49,8 +54,8 @@
         
         #sidebar .nav-link:hover,
         #sidebar .nav-link.active {
-            color: var(--bs-white);
-            background-color: var(--bs-primary);
+            color: var(--bs-primary);
+            background-color: rgba(13, 110, 253, 0.1);
         }
         
         #sidebar .nav-item .nav-treeview {
@@ -67,6 +72,13 @@
             padding: 20px;
             width: calc(100% - var(--sidebar-width));
             transition: all 0.3s;
+            background-color: #f4f5f7; /* Match the body background */
+        }
+        
+        /* Add subtle shadow to all cards for better contrast */
+        .card {
+            box-shadow: 0 0.15rem 0.35rem rgba(0, 0, 0, 0.05);
+            border: none;
         }
         
         #content.expanded {
@@ -81,8 +93,8 @@
             right: 0;
             height: 60px;
             z-index: 101;
-            background-color: var(--bs-gray-900);
-            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            background-color: #ffffff;
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
             padding: 0 1rem;
         }
         
@@ -103,7 +115,7 @@
         .page-header {
             margin-bottom: 1.5rem;
             padding: 1.5rem 0;
-            border-bottom: 1px solid var(--bs-gray-800);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -120,22 +132,23 @@
         .sidebar-toggler {
             cursor: pointer;
             padding: 0.5rem;
-            color: var(--bs-gray-300);
+            color: var(--bs-gray-800);
             margin-right: 1rem;
         }
         
         .dropdown-menu {
-            background-color: var(--bs-gray-800);
-            border-color: var(--bs-gray-700);
+            background-color: #ffffff;
+            border-color: rgba(0, 0, 0, 0.1);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
         }
         
         .dropdown-item {
-            color: var(--bs-gray-300);
+            color: var(--bs-gray-800);
         }
         
         .dropdown-item:hover {
-            background-color: var(--bs-gray-700);
-            color: var(--bs-white);
+            background-color: #f4f5f7;
+            color: var(--bs-primary);
         }
         
         @media (max-width: 768px) {
@@ -193,7 +206,7 @@
         
         <div class="d-flex align-items-center">
             <div class="dropdown">
-                <button class="btn btn-link dropdown-toggle text-light" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <button class="btn btn-link dropdown-toggle text-dark" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-user-circle me-1"></i>
                     <span class="d-none d-md-inline">{{ current_user.username }}</span>
                 </button>
