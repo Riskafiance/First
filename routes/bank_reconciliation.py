@@ -560,13 +560,44 @@ def match_transaction(transaction_id, entry_id):
     transaction = BankTransaction.query.get_or_404(transaction_id)
     journal_entry = JournalEntry.query.get_or_404(entry_id)
     
-    # Match the transaction with the journal entry
-    transaction.gl_entry_id = entry_id
-    transaction.is_reconciled = True
-    transaction.reconciled_date = datetime.date.today()
-    
-    # Save to database
     try:
+        # Validate that the transaction can be matched with this journal entry
+        # Check if amounts are compatible
+        journal_items = JournalItem.query.filter_by(journal_entry_id=entry_id).all()
+        
+        # For debugging, let's log what we're trying to match
+        bank_gl_account_id = BankStatement.query.filter_by(id=transaction.statement_id).first().bank_account.gl_account_id
+        
+        # Find a matching journal item amount
+        entry_amount = None
+        for item in journal_items:
+            if item.account_id == bank_gl_account_id:
+                if transaction.transaction_type == 'credit' and item.credit_amount > 0:
+                    entry_amount = item.credit_amount
+                    break
+                elif transaction.transaction_type == 'debit' and item.debit_amount > 0:
+                    entry_amount = item.debit_amount
+                    break
+        
+        # Safety check - no match found for the bank account
+        if entry_amount is None:
+            return jsonify({
+                'success': False, 
+                'message': 'Cannot match: No journal entry line for the bank account with matching transaction type'
+            })
+        
+        # Safety check - amounts should match
+        if abs(transaction.amount - entry_amount) > Decimal('0.01'):  # Allow for rounding differences (within 1 cent)
+            return jsonify({
+                'success': False, 
+                'message': f'Cannot match: Transaction amount ({transaction.amount}) does not match journal entry amount ({entry_amount})'
+            })
+            
+        # Everything looks good, match the transaction
+        transaction.gl_entry_id = entry_id
+        transaction.is_reconciled = True
+        transaction.reconciled_date = datetime.date.today()
+        
         db.session.commit()
         return jsonify({
             'success': True, 
@@ -575,7 +606,7 @@ def match_transaction(transaction_id, entry_id):
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'Error matching transaction: {str(e)}'})
+        return jsonify({'success': False, 'message': f'Error matching transaction: {str(e)}. Please contact support.'})
 
 
 @bank_reconciliation_bp.route('/transactions/<int:transaction_id>/unmatch', methods=['POST'])
