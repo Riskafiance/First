@@ -133,7 +133,7 @@
                                 <tbody>
                                     {% for entry in journal_entries %}
                                     <tr id="entry-{{ entry.id }}" class="entry-row" data-entry-id="{{ entry.id }}">
-                                        <td>{{ entry.date.strftime('%Y-%m-%d') }}</td>
+                                        <td>{{ entry.entry_date.strftime('%Y-%m-%d') }}</td>
                                         <td>
                                             <div class="text-truncate" style="max-width: 200px;" title="{{ entry.description }}">
                                                 {{ entry.description }}
