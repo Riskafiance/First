@@ -294,36 +294,123 @@ def import_transactions(statement_id):
         # Try to parse the CSV file
         try:
             # Read the file contents
-            file_content = file.read().decode('utf-8')
+            file_content = file.read()
+            
+            # Try to decode with UTF-8 first
+            try:
+                file_content = file_content.decode('utf-8')
+            except UnicodeDecodeError:
+                # If UTF-8 fails, try other common encodings
+                try:
+                    file_content = file_content.decode('latin-1')
+                except UnicodeDecodeError:
+                    try:
+                        file_content = file_content.decode('cp1252')
+                    except UnicodeDecodeError:
+                        flash('Unable to decode the CSV file. Please ensure it is properly encoded.', 'danger')
+                        return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+            
             csv_file = io.StringIO(file_content)
             
-            # Use pandas to read the CSV file which is more flexible with different formats
-            df = pd.read_csv(csv_file)
+            # Check if the file has content
+            if len(file_content.strip()) == 0:
+                flash('The uploaded file appears to be empty.', 'danger')
+                return render_template('bank_reconciliation/import_transactions.html', statement=statement)
             
-            # Map columns
-            date_col = int(date_col) - 1 if date_col.isdigit() else date_col
-            description_col = int(description_col) - 1 if description_col.isdigit() else description_col
-            amount_col = int(amount_col) - 1 if amount_col.isdigit() else amount_col
-            reference_col = int(reference_col) - 1 if reference_col.isdigit() and reference_col else None
+            # Try to detect the CSV delimiter
+            dialect = csv.Sniffer().sniff(csv_file.read(1024))
+            csv_file.seek(0)
+            
+            # Use pandas to read the CSV file which is more flexible with different formats
+            try:
+                # Try with auto-detected delimiter
+                df = pd.read_csv(csv_file, dialect=dialect)
+            except:
+                # If that fails, reset and try with comma delimiter
+                csv_file.seek(0)
+                try:
+                    df = pd.read_csv(csv_file)
+                except Exception as e:
+                    flash(f'Error parsing CSV: {str(e)}. Please check the file format.', 'danger')
+                    return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+            
+            # Get column names for debugging
+            column_names = list(df.columns)
+            
+            # Convert column references to actual column names or indices
+            try:
+                # Map columns - try to handle both column names and indices
+                if date_col.isdigit():
+                    date_col_idx = int(date_col) - 1  # Convert to 0-based index
+                    if date_col_idx >= len(column_names):
+                        flash(f'Date column index {date_col} is out of range. File has {len(column_names)} columns.', 'danger')
+                        return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                    date_col = column_names[date_col_idx]
+                elif date_col not in df.columns:
+                    flash(f'Date column "{date_col}" not found in CSV. Available columns: {", ".join(column_names)}', 'danger')
+                    return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                
+                if description_col.isdigit():
+                    desc_col_idx = int(description_col) - 1
+                    if desc_col_idx >= len(column_names):
+                        flash(f'Description column index {description_col} is out of range. File has {len(column_names)} columns.', 'danger')
+                        return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                    description_col = column_names[desc_col_idx]
+                elif description_col not in df.columns:
+                    flash(f'Description column "{description_col}" not found in CSV. Available columns: {", ".join(column_names)}', 'danger')
+                    return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                
+                if amount_col.isdigit():
+                    amount_col_idx = int(amount_col) - 1
+                    if amount_col_idx >= len(column_names):
+                        flash(f'Amount column index {amount_col} is out of range. File has {len(column_names)} columns.', 'danger')
+                        return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                    amount_col = column_names[amount_col_idx]
+                elif amount_col not in df.columns:
+                    flash(f'Amount column "{amount_col}" not found in CSV. Available columns: {", ".join(column_names)}', 'danger')
+                    return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                
+                if reference_col:
+                    if reference_col.isdigit():
+                        ref_col_idx = int(reference_col) - 1
+                        if ref_col_idx >= len(column_names):
+                            flash(f'Reference column index {reference_col} is out of range. File has {len(column_names)} columns.', 'danger')
+                            return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+                        reference_col = column_names[ref_col_idx]
+                    elif reference_col not in df.columns:
+                        flash(f'Reference column "{reference_col}" not found in CSV. Available columns: {", ".join(column_names)}', 'danger')
+                        return render_template('bank_reconciliation/import_transactions.html', statement=statement)
+            except Exception as e:
+                flash(f'Error mapping columns: {str(e)}', 'danger')
+                return render_template('bank_reconciliation/import_transactions.html', statement=statement)
             
             # Process each row
             transaction_count = 0
+            skipped_rows = 0
+            errors = []
+            
             for index, row in df.iterrows():
-                # Get values from the row based on column mapping
-                transaction_date_str = str(row[date_col]).strip() if date_col in row else None
-                description = str(row[description_col]).strip() if description_col in row else None
-                amount_str = str(row[amount_col]).strip() if amount_col in row else None
-                reference = str(row[reference_col]).strip() if reference_col and reference_col in row else None
-                
-                # Skip rows with missing required values
-                if not transaction_date_str or not description or not amount_str:
-                    continue
-                
-                # Convert date string to date object
                 try:
+                    # Get values from the row based on column mapping
+                    # Use .get method to avoid KeyErrors
+                    transaction_date_str = str(row.get(date_col, '')).strip()
+                    description = str(row.get(description_col, '')).strip()
+                    amount_str = str(row.get(amount_col, '')).strip()
+                    reference = str(row.get(reference_col, '')) if reference_col else ''
+                    
+                    # Skip rows with missing required values
+                    if not transaction_date_str or not description or not amount_str:
+                        skipped_rows += 1
+                        continue
+                    
+                    # Convert date string to date object
                     # Try different date formats
                     transaction_date = None
-                    date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m-%d-%Y', '%d-%m-%Y']
+                    date_formats = [
+                        '%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%m-%d-%Y', '%d-%m-%Y',
+                        '%Y/%m/%d', '%m.%d.%Y', '%d.%m.%Y', '%b %d, %Y', '%d %b %Y',
+                        '%d-%b-%Y', '%d/%b/%Y', '%B %d, %Y', '%d %B %Y'
+                    ]
                     
                     for date_format in date_formats:
                         try:
@@ -334,51 +421,77 @@ def import_transactions(statement_id):
                     
                     if transaction_date is None:
                         # If none of the formats worked, skip this row
+                        skipped_rows += 1
+                        errors.append(f"Row {index+1}: Unable to parse date format '{transaction_date_str}'")
                         continue
-                except ValueError:
-                    # Skip rows with invalid date format
-                    continue
-                
-                # Convert amount string to decimal
-                try:
-                    # Remove any currency symbols and commas
-                    amount_str = amount_str.replace('$', '').replace(',', '')
-                    amount = Decimal(amount_str)
                     
-                    # Determine transaction type (debit/credit)
-                    transaction_type = 'debit' if amount < 0 else 'credit'
+                    # Convert amount string to decimal
+                    try:
+                        # Remove any currency symbols, commas, parentheses, and handle negative signs
+                        # Handle parentheses notation for negative numbers (e.g., $(123.45) -> -123.45)
+                        if '(' in amount_str and ')' in amount_str:
+                            amount_str = amount_str.replace('(', '-').replace(')', '')
+                            
+                        amount_str = amount_str.replace('$', '').replace(',', '').replace(' ', '')
+                        amount = Decimal(amount_str)
+                        
+                        # Determine transaction type (debit/credit)
+                        transaction_type = 'debit' if amount < 0 else 'credit'
+                        
+                        # Make amount positive for storage
+                        amount = abs(amount)
+                    except Exception as e:
+                        skipped_rows += 1
+                        errors.append(f"Row {index+1}: Invalid amount format '{amount_str}': {str(e)}")
+                        continue
                     
-                    # Make amount positive for storage
-                    amount = abs(amount)
-                except:
-                    # Skip rows with invalid amount format
-                    continue
-                
-                # Create a new bank transaction
-                transaction = BankTransaction(
-                    statement_id=statement_id,
-                    transaction_date=transaction_date,
-                    description=description,
-                    reference=reference,
-                    amount=amount,
-                    transaction_type=transaction_type,
-                    is_reconciled=False
-                )
-                
-                db.session.add(transaction)
-                transaction_count += 1
+                    # Create a new bank transaction
+                    transaction = BankTransaction(
+                        statement_id=statement_id,
+                        transaction_date=transaction_date,
+                        description=description,
+                        reference=reference,
+                        amount=amount,
+                        transaction_type=transaction_type,
+                        is_reconciled=False
+                    )
+                    
+                    db.session.add(transaction)
+                    transaction_count += 1
+                except Exception as e:
+                    skipped_rows += 1
+                    errors.append(f"Row {index+1}: {str(e)}")
             
             # Commit all transactions to the database
             if transaction_count > 0:
                 try:
                     db.session.commit()
-                    flash(f'Successfully imported {transaction_count} transactions.', 'success')
+                    message = f'Successfully imported {transaction_count} transactions.'
+                    if skipped_rows > 0:
+                        message += f' Skipped {skipped_rows} rows.'
+                    flash(message, 'success')
+                    
+                    # Report any errors in a separate flash message
+                    if errors:
+                        error_details = '<br>'.join(errors[:5])  # Show first 5 errors
+                        if len(errors) > 5:
+                            error_details += f'<br>... and {len(errors) - 5} more errors'
+                        flash(f'Some rows had errors:<br>{error_details}', 'warning')
+                    
                     return redirect(url_for('bank_reconciliation.transactions', statement_id=statement_id))
                 except Exception as e:
                     db.session.rollback()
                     flash(f'Error importing transactions: {str(e)}', 'danger')
             else:
-                flash('No valid transactions found in the file.', 'warning')
+                if skipped_rows > 0:
+                    flash(f'No valid transactions found. Skipped {skipped_rows} rows due to errors.', 'danger')
+                    if errors:
+                        error_details = '<br>'.join(errors[:5])  # Show first 5 errors
+                        if len(errors) > 5:
+                            error_details += f'<br>... and {len(errors) - 5} more errors'
+                        flash(f'Error details:<br>{error_details}', 'warning')
+                else:
+                    flash('No transactions found in the file.', 'warning')
         
         except Exception as e:
             flash(f'Error reading CSV file: {str(e)}', 'danger')
