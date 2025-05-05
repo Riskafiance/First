@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
-from models import Role, BankAccount, BankStatement, BankTransaction, ReconciliationRule, Account, JournalEntry, AccountType
+from models import Role, BankAccount, BankStatement, BankTransaction, ReconciliationRule, Account, JournalEntry, JournalItem, AccountType
 from app import db
 from sqlalchemy import desc, func
 import datetime
@@ -527,21 +527,20 @@ def reconcile(statement_id):
     gl_account_id = statement.bank_account.gl_account_id
     
     # Get journal entries within the date range that involve this GL account
-    journal_entries = JournalEntry.query.filter(
-        JournalEntry.entry_date >= statement.start_date,
-        JournalEntry.entry_date <= statement.end_date
+    # We need to join with JournalItem since that's where the account_id is stored
+    journal_entries = JournalEntry.query.join(
+        JournalItem, JournalEntry.id == JournalItem.journal_entry_id
     ).filter(
-        db.or_(
-            JournalEntry.debit_account_id == gl_account_id,
-            JournalEntry.credit_account_id == gl_account_id
-        )
+        JournalEntry.entry_date >= statement.start_date,
+        JournalEntry.entry_date <= statement.end_date,
+        JournalItem.account_id == gl_account_id
     ).filter(
         ~JournalEntry.id.in_(
             db.session.query(BankTransaction.gl_entry_id).filter(
                 BankTransaction.gl_entry_id.isnot(None)
             )
         )
-    ).all()
+    ).distinct().all()
     
     return render_template('bank_reconciliation/reconcile.html', 
                         statement=statement, 
@@ -801,19 +800,53 @@ def apply_rules(statement_id):
                     amount=transaction.amount
                 )
                 
-                # Set the accounts based on transaction type
-                if transaction.transaction_type == 'credit':
-                    # Money coming in - credit the bank account, debit the matched account
-                    journal_entry.credit_account_id = statement.bank_account.gl_account_id
-                    journal_entry.debit_account_id = rule.gl_account_id
-                else:
-                    # Money going out - debit the bank account, credit the matched account
-                    journal_entry.debit_account_id = statement.bank_account.gl_account_id
-                    journal_entry.credit_account_id = rule.gl_account_id
-                
                 # Add journal entry to the database
                 db.session.add(journal_entry)
                 db.session.flush()  # This assigns an ID to the journal entry
+                
+                # Create journal items (line items) for the entry
+                if transaction.transaction_type == 'credit':
+                    # Money coming in - credit the bank account, debit the matched account
+                    # Create the credit item (bank account)
+                    credit_item = JournalItem(
+                        journal_entry_id=journal_entry.id,
+                        account_id=statement.bank_account.gl_account_id,
+                        description=f"Bank deposit: {transaction.description[:30]}",
+                        credit_amount=transaction.amount,
+                        debit_amount=0
+                    )
+                    db.session.add(credit_item)
+                    
+                    # Create the debit item (income account from rule)
+                    debit_item = JournalItem(
+                        journal_entry_id=journal_entry.id,
+                        account_id=rule.gl_account_id,
+                        description=f"Income matched by rule: {rule.name}",
+                        debit_amount=transaction.amount,
+                        credit_amount=0
+                    )
+                    db.session.add(debit_item)
+                else:
+                    # Money going out - debit the bank account, credit the matched account
+                    # Create the debit item (bank account)
+                    debit_item = JournalItem(
+                        journal_entry_id=journal_entry.id,
+                        account_id=statement.bank_account.gl_account_id,
+                        description=f"Bank withdrawal: {transaction.description[:30]}",
+                        debit_amount=transaction.amount,
+                        credit_amount=0
+                    )
+                    db.session.add(debit_item)
+                    
+                    # Create the credit item (expense account from rule)
+                    credit_item = JournalItem(
+                        journal_entry_id=journal_entry.id,
+                        account_id=rule.gl_account_id,
+                        description=f"Expense matched by rule: {rule.name}",
+                        credit_amount=transaction.amount,
+                        debit_amount=0
+                    )
+                    db.session.add(credit_item)
                 
                 # Link the journal entry to the transaction
                 transaction.gl_entry_id = journal_entry.id
