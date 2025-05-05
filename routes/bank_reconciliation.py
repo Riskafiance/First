@@ -499,6 +499,114 @@ def import_transactions(statement_id):
     return render_template('bank_reconciliation/import_transactions.html', statement=statement)
 
 
+@bank_reconciliation_bp.route('/statements/<int:statement_id>/generate-test-entries', methods=['POST'])
+@login_required
+def generate_test_entries(statement_id):
+    """Generate test journal entries for reconciliation testing"""
+    # Check permission
+    if not current_user.has_permission(Role.CAN_CREATE):
+        flash('You do not have permission to generate test entries.', 'danger')
+        return redirect(url_for('bank_reconciliation.reconcile', statement_id=statement_id))
+
+    # Get the bank statement
+    statement = BankStatement.query.get_or_404(statement_id)
+    
+    # Get all unreconciled transactions for this statement
+    transactions = BankTransaction.query.filter_by(
+        statement_id=statement_id, 
+        is_reconciled=False
+    ).all()
+    
+    # Get necessary accounts
+    bank_account_id = statement.bank_account.gl_account_id
+    
+    # Find a suitable expense account
+    expense_type = AccountType.query.filter_by(name=AccountType.EXPENSE).first()
+    if expense_type:
+        expense_account = Account.query.filter_by(account_type_id=expense_type.id).first()
+    else:
+        expense_account = None
+    
+    # Find a suitable revenue account
+    revenue_type = AccountType.query.filter_by(name=AccountType.REVENUE).first()
+    if revenue_type:
+        revenue_account = Account.query.filter_by(account_type_id=revenue_type.id).first()
+    else:
+        revenue_account = None
+    
+    if not expense_account or not revenue_account:
+        flash('Cannot generate test entries: Missing required accounts (expense or revenue).', 'danger')
+        return redirect(url_for('bank_reconciliation.reconcile', statement_id=statement_id))
+    
+    # Create matching journal entries for each transaction
+    entry_count = 0
+    for transaction in transactions:
+        # Create a new journal entry with matching date and amount
+        journal_entry = JournalEntry(
+            entry_date=transaction.transaction_date,
+            reference=f"Test entry for: {transaction.description}",
+            description=transaction.description,
+            is_posted=True,
+            created_at=datetime.datetime.now(),
+            created_by_id=current_user.id if current_user else None
+        )
+        
+        db.session.add(journal_entry)
+        db.session.flush()  # This assigns an ID to the journal entry
+        
+        # Create the appropriate journal items based on transaction type
+        if transaction.transaction_type == 'credit':
+            # Money coming in - credit bank, debit revenue
+            credit_item = JournalItem(
+                journal_entry_id=journal_entry.id,
+                account_id=bank_account_id,
+                description="Bank deposit",
+                credit_amount=transaction.amount,
+                debit_amount=0
+            )
+            db.session.add(credit_item)
+            
+            debit_item = JournalItem(
+                journal_entry_id=journal_entry.id,
+                account_id=revenue_account.id,
+                description="Revenue",
+                debit_amount=transaction.amount,
+                credit_amount=0
+            )
+            db.session.add(debit_item)
+        else:
+            # Money going out - debit bank, credit expense
+            debit_item = JournalItem(
+                journal_entry_id=journal_entry.id,
+                account_id=bank_account_id,
+                description="Bank payment",
+                debit_amount=transaction.amount,
+                credit_amount=0
+            )
+            db.session.add(debit_item)
+            
+            credit_item = JournalItem(
+                journal_entry_id=journal_entry.id,
+                account_id=expense_account.id,
+                description="Expense",
+                credit_amount=transaction.amount,
+                debit_amount=0
+            )
+            db.session.add(credit_item)
+        
+        entry_count += 1
+    
+    # Save changes to database
+    try:
+        db.session.commit()
+        flash(f'Successfully generated {entry_count} test journal entries for reconciliation.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error generating test entries: {str(e)}', 'danger')
+    
+    return redirect(url_for('bank_reconciliation.reconcile', statement_id=statement_id))
+
+
 @bank_reconciliation_bp.route('/statements/<int:statement_id>/reconcile')
 @login_required
 def reconcile(statement_id):
