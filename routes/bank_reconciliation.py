@@ -796,8 +796,7 @@ def apply_rules(statement_id):
                 journal_entry = JournalEntry(
                     entry_date=transaction.transaction_date,
                     reference=f"Auto-matched: {transaction.reference or transaction.description[:20]}",
-                    description=transaction.description,
-                    amount=transaction.amount
+                    description=transaction.description
                 )
                 
                 # Add journal entry to the database

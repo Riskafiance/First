@@ -142,7 +142,19 @@
                                             <small class="text-muted">Ref: {{ entry.reference }}</small>
                                             {% endif %}
                                         </td>
-                                        <td>${{ "{:,.2f}".format(entry.amount) }}</td>
+                                        <td>
+                                            {% set total_amount = [0] %}
+                                            {% for item in entry.items %}
+                                                {% if item.account_id == statement.bank_account.gl_account_id %}
+                                                    {% if item.debit_amount > 0 %}
+                                                        {% set _ = total_amount.append(item.debit_amount) %}
+                                                    {% else %}
+                                                        {% set _ = total_amount.append(item.credit_amount) %}
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            ${{ "{:,.2f}".format(total_amount[-1]) }}
+                                        </td>
                                         <td>
                                             <button class="btn btn-sm btn-outline-success match-btn" data-entry-id="{{ entry.id }}">
                                                 <i class="fas fa-link"></i> Match
